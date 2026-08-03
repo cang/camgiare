@@ -18,6 +18,8 @@ export const ThreeItemGridItem: React.FC<Props> = ({ item, size }) => {
     }
   }
 
+  const image = item.gallery?.[0]?.image
+
   return (
     <div
       className={size === 'full' ? 'md:col-span-4 md:row-span-2' : 'md:col-span-2 md:row-span-1'}
@@ -29,7 +31,7 @@ export const ThreeItemGridItem: React.FC<Props> = ({ item, size }) => {
             position: size === 'full' ? 'center' : 'bottom',
             title: item.title,
           }}
-          media={item.meta?.image as Media}
+          media={typeof image === 'object' ? (image as Media) : undefined}
         />
       </Link>
     </div>

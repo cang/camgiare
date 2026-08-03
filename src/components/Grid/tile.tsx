@@ -13,7 +13,7 @@ type Props = {
     position?: 'bottom' | 'center'
     title: string
   }
-  media: MediaType
+  media?: MediaType
 }
 
 export const GridTileImage: React.FC<Props> = ({

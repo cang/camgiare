@@ -40,11 +40,16 @@ export const StockIndicator: React.FC<Props> = ({ product }) => {
   }, [product.enableVariants, selectedVariant, product.inventory])
 
   if (product.enableVariants && !selectedVariant) {
-    return null
+    return (
+      <div className="uppercase font-mono text-sm font-medium text-gray-500">
+        <p>Vui lòng chọn phân loại để xem tình trạng kho</p>
+      </div>
+    )
   }
 
   return (
     <div className="uppercase font-mono text-sm font-medium text-gray-500">
+      {stockQuantity >= 10 && <p>Còn hàng</p>}
       {stockQuantity < 10 && stockQuantity > 0 && <p>Chỉ còn {stockQuantity} sản phẩm trong kho</p>}
       {(stockQuantity === 0 || !stockQuantity) && <p>Hết hàng</p>}
     </div>

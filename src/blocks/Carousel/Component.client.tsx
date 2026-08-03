@@ -27,22 +27,26 @@ export const CarouselClient: React.FC<{ products: Product[] }> = async ({ produc
       ]}
     >
       <CarouselContent>
-        {carouselProducts.map((product, i) => (
-          <CarouselItem
-            className="relative aspect-square h-[30vh] max-h-[275px] w-2/3 max-w-[475px] flex-none md:w-1/3"
-            key={`${product.slug}${i}`}
-          >
-            <Link className="relative h-full w-full" href={`/products/${product.slug}`}>
-              <GridTileImage
-                label={{
-                  amount: product.priceInVND!,
-                  title: product.title,
-                }}
-                media={product.meta?.image as Media}
-              />
-            </Link>
-          </CarouselItem>
-        ))}
+        {carouselProducts.map((product, i) => {
+          const image = product.gallery?.[0]?.image
+
+          return (
+            <CarouselItem
+              className="relative aspect-square h-[30vh] max-h-[275px] w-2/3 max-w-[475px] flex-none md:w-1/3"
+              key={`${product.slug}${i}`}
+            >
+              <Link className="relative h-full w-full" href={`/products/${product.slug}`}>
+                <GridTileImage
+                  label={{
+                    amount: product.priceInVND!,
+                    title: product.title,
+                  }}
+                  media={typeof image === 'object' ? (image as Media) : undefined}
+                />
+              </Link>
+            </CarouselItem>
+          )
+        })}
       </CarouselContent>
     </Carousel>
   )

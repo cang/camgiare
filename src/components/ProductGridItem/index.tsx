@@ -7,10 +7,11 @@ import { Media } from '@/components/Media'
 import { Price } from '@/components/Price'
 
 type Props = {
+  priority?: boolean
   product: Partial<Product>
 }
 
-export const ProductGridItem: React.FC<Props> = ({ product }) => {
+export const ProductGridItem: React.FC<Props> = ({ priority, product }) => {
   const { gallery, priceInVND, title } = product
 
   let price = priceInVND
@@ -29,32 +30,44 @@ export const ProductGridItem: React.FC<Props> = ({ product }) => {
     }
   }
 
+  const compareAtPrice =
+    typeof product.compareAtPriceInVND === 'number' ? product.compareAtPriceInVND : undefined
+  const discountPercent =
+    compareAtPrice && typeof price === 'number' && compareAtPrice > price
+      ? Math.round(((compareAtPrice - price) / compareAtPrice) * 100)
+      : undefined
+
   const image =
     gallery?.[0]?.image && typeof gallery[0]?.image !== 'string' ? gallery[0]?.image : false
 
   return (
     <Link className="relative inline-block h-full w-full group" href={`/products/${product.slug}`}>
-      {image ? (
-        <Media
-          className={clsx(
-            'relative aspect-square object-cover border rounded-2xl p-8 bg-primary-foreground',
-          )}
-          height={80}
-          imgClassName={clsx('h-full w-full object-cover rounded-2xl', {
-            'transition duration-300 ease-in-out group-hover:scale-102': true,
-          })}
-          resource={image}
-          width={80}
-        />
-      ) : null}
+      <div className="relative aspect-square overflow-hidden rounded-2xl border bg-primary-foreground p-8">
+        {Boolean(discountPercent) && (
+          <span className="absolute left-2 top-2 z-10 rounded bg-destructive px-1.5 py-0.5 text-xs font-semibold text-destructive-foreground">
+            -{discountPercent}%
+          </span>
+        )}
+        {image ? (
+          <Media
+            className="relative h-full w-full"
+            fill
+            imgClassName={clsx('h-full w-full object-cover rounded-2xl', {
+              'transition duration-300 ease-in-out group-hover:scale-102': true,
+            })}
+            priority={priority}
+            resource={image}
+          />
+        ) : null}
+      </div>
 
       <div className="font-mono text-primary/50 group-hover:text-primary flex justify-between items-center mt-4">
         <div>{title}</div>
 
-        {typeof price === 'number' && (
-          <div className="">
-            <Price amount={price} />
-          </div>
+        {typeof price === 'number' ? (
+          <Price amount={price} />
+        ) : (
+          <div className="text-sm">Liên hệ</div>
         )}
       </div>
     </Link>

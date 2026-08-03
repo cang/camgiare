@@ -4,6 +4,7 @@
 /node_modules
 /.pnp
 .pnp.js
+/tools/delwm/venv312
 
 # testing
 /coverage

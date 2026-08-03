@@ -12,6 +12,7 @@ import {
   SheetTitle,
   SheetTrigger,
 } from '@/components/ui/sheet'
+import { SearchBar } from '@/components/layout/search/SearchBar'
 import { useAuth } from '@/providers/Auth'
 import { MenuIcon } from 'lucide-react'
 import Link from 'next/link'
@@ -60,6 +61,10 @@ export function MobileMenu({ menu }: Props) {
 
           <SheetDescription />
         </SheetHeader>
+
+        <div className="pt-4">
+          <SearchBar />
+        </div>
 
         <div className="py-4">
           {menu?.length ? (

@@ -106,7 +106,7 @@
   --brand-accent: #f05a22;
   --brand-accent-foreground: #ffffff;
   --destructive: oklch(57.7% 0.245 27.325deg);
-  --destructive-foreground: oklch(57.7% 0.245 27.325deg);
+  --destructive-foreground: #ffffff;
   --border: oklch(92.2% 0 0deg);
   --input: oklch(92.2% 0 0deg);
   --ring: #105898;

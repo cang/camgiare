@@ -9,6 +9,7 @@ import { MobileMenu } from './MobileMenu'
 import type { Header } from 'src/payload-types'
 
 import { Logo } from '@/components/Logo/Logo'
+import { SearchBar } from '@/components/layout/search/SearchBar'
 import { usePathname } from 'next/navigation'
 import { cn } from '@/utilities/cn'
 
@@ -52,6 +53,12 @@ export function HeaderClient({ header }: Props) {
                 ))}
               </ul>
             ) : null}
+          </div>
+
+          <div className="hidden md:mx-4 md:block md:max-w-md md:flex-1">
+            <Suspense fallback={null}>
+              <SearchBar />
+            </Suspense>
           </div>
 
           <div className="flex justify-end md:w-1/3 gap-4">

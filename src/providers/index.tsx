@@ -17,6 +17,17 @@ export const Providers: React.FC<{
           <SonnerProvider />
           <EcommerceProvider
             enableVariants={true}
+            currenciesConfig={{
+              defaultCurrency: 'VND',
+              supportedCurrencies: [
+                {
+                  code: 'VND',
+                  decimals: 0,
+                  label: 'Việt Nam Đồng',
+                  symbol: '₫',
+                },
+              ],
+            }}
             api={{
               cartsFetchQuery: {
                 depth: 2,

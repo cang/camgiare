@@ -76,6 +76,7 @@ export interface Config {
     pages: Page;
     services: Service;
     categories: Category;
+    brands: Brand;
     media: Media;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -110,6 +111,7 @@ export interface Config {
     pages: PagesSelect<false> | PagesSelect<true>;
     services: ServicesSelect<false> | ServicesSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
+    brands: BrandsSelect<false> | BrandsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -133,10 +135,12 @@ export interface Config {
   globals: {
     header: Header;
     footer: Footer;
+    'store-info': StoreInfo;
   };
   globalsSelect: {
     header: HeaderSelect<false> | HeaderSelect<true>;
     footer: FooterSelect<false> | FooterSelect<true>;
+    'store-info': StoreInfoSelect<false> | StoreInfoSelect<true>;
   };
   locale: null;
   widgets: {
@@ -268,6 +272,12 @@ export interface Order {
 export interface Product {
   id: string;
   title: string;
+  shortDescription?:
+    | {
+        text: string;
+        id?: string | null;
+      }[]
+    | null;
   description?: {
     root: {
       type: string;
@@ -301,6 +311,20 @@ export interface Product {
   };
   priceInVNDEnabled?: boolean | null;
   priceInVND?: number | null;
+  /**
+   * Để trống nếu sản phẩm không giảm giá. Phải lớn hơn giá bán hiện tại.
+   */
+  compareAtPriceInVND?: number | null;
+  specifications?:
+    | {
+        label: string;
+        /**
+         * Nhiều dòng sẽ hiển thị dạng gạch đầu dòng.
+         */
+        value: string;
+        id?: string | null;
+      }[]
+    | null;
   relatedProducts?: (string | Product)[] | null;
   meta?: {
     title?: string | null;
@@ -311,6 +335,8 @@ export interface Product {
     description?: string | null;
   };
   categories?: (string | Category)[] | null;
+  brand?: (string | null) | Brand;
+  sku?: string | null;
   /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
@@ -971,6 +997,23 @@ export interface Variant {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "brands".
+ */
+export interface Brand {
+  id: string;
+  name: string;
+  logo?: (string | null) | Media;
+  description?: string | null;
+  /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  slug: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "transactions".
  */
 export interface Transaction {
@@ -1151,6 +1194,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'categories';
         value: string | Category;
+      } | null)
+    | ({
+        relationTo: 'brands';
+        value: string | Brand;
       } | null)
     | ({
         relationTo: 'media';
@@ -1495,6 +1542,19 @@ export interface CategoriesSelect<T extends boolean = true> {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "brands_select".
+ */
+export interface BrandsSelect<T extends boolean = true> {
+  name?: T;
+  logo?: T;
+  description?: T;
+  generateSlug?: T;
+  slug?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "media_select".
  */
 export interface MediaSelect<T extends boolean = true> {
@@ -1728,6 +1788,12 @@ export interface VariantOptionsSelect<T extends boolean = true> {
  */
 export interface ProductsSelect<T extends boolean = true> {
   title?: T;
+  shortDescription?:
+    | T
+    | {
+        text?: T;
+        id?: T;
+      };
   description?: T;
   gallery?:
     | T
@@ -1749,6 +1815,14 @@ export interface ProductsSelect<T extends boolean = true> {
   variants?: T;
   priceInVNDEnabled?: T;
   priceInVND?: T;
+  compareAtPriceInVND?: T;
+  specifications?:
+    | T
+    | {
+        label?: T;
+        value?: T;
+        id?: T;
+      };
   relatedProducts?: T;
   meta?:
     | T
@@ -1758,6 +1832,8 @@ export interface ProductsSelect<T extends boolean = true> {
         description?: T;
       };
   categories?: T;
+  brand?: T;
+  sku?: T;
   generateSlug?: T;
   slug?: T;
   updatedAt?: T;
@@ -1970,6 +2046,19 @@ export interface Footer {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "store-info".
+ */
+export interface StoreInfo {
+  id: string;
+  hotline?: string | null;
+  shippingNote?: string | null;
+  warrantyNote?: string | null;
+  returnNote?: string | null;
+  updatedAt?: string | null;
+  createdAt?: string | null;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "header_select".
  */
 export interface HeaderSelect<T extends boolean = true> {
@@ -2010,6 +2099,19 @@ export interface FooterSelect<T extends boolean = true> {
             };
         id?: T;
       };
+  updatedAt?: T;
+  createdAt?: T;
+  globalType?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "store-info_select".
+ */
+export interface StoreInfoSelect<T extends boolean = true> {
+  hotline?: T;
+  shippingNote?: T;
+  warrantyNote?: T;
+  returnNote?: T;
   updatedAt?: T;
   createdAt?: T;
   globalType?: T;

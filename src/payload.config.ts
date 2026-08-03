@@ -15,6 +15,7 @@ import path from 'path'
 import { buildConfig } from 'payload'
 import { fileURLToPath } from 'url'
 
+import { Brands } from '@/collections/Brands'
 import { Categories } from '@/collections/Categories'
 import { Media } from '@/collections/Media'
 import { Pages } from '@/collections/Pages'
@@ -22,6 +23,7 @@ import { Services } from '@/collections/Services'
 import { Users } from '@/collections/Users'
 import { Footer } from '@/globals/Footer'
 import { Header } from '@/globals/Header'
+import { StoreInfo } from '@/globals/StoreInfo'
 import { plugins } from './plugins'
 
 const filename = fileURLToPath(import.meta.url)
@@ -39,7 +41,7 @@ export default buildConfig({
     },
     user: Users.slug,
   },
-  collections: [Users, Pages, Services, Categories, Media],
+  collections: [Users, Pages, Services, Categories, Brands, Media],
   db: mongooseAdapter({
     url: process.env.DATABASE_URL || '',
   }),
@@ -80,7 +82,7 @@ export default buildConfig({
   }),
   //email: nodemailerAdapter(),
   endpoints: [],
-  globals: [Header, Footer],
+  globals: [Header, Footer, StoreInfo],
   plugins,
   secret: process.env.PAYLOAD_SECRET || '',
   typescript: {

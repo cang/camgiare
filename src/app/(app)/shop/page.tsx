@@ -2,9 +2,20 @@ import type { Metadata } from 'next'
 
 import { Grid } from '@/components/Grid'
 import { ProductGridItem } from '@/components/ProductGridItem'
+import {
+  Pagination,
+  PaginationContent,
+  PaginationItem,
+  PaginationLink,
+  PaginationNext,
+  PaginationPrevious,
+} from '@/components/ui/pagination'
+import { createUrl } from '@/utilities/createUrl'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import React from 'react'
+
+const PAGE_SIZE = 24
 
 type SearchParams = { [key: string]: string | string[] | undefined }
 
@@ -34,19 +45,23 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 }
 
 export default async function ShopPage({ searchParams }: Props) {
-  const { q: searchValue, sort, category } = await searchParams
+  const { q: searchValue, sort, category, page: pageParam } = await searchParams
+  const page = Math.max(1, Number(pageParam) || 1)
   const payload = await getPayload({ config: configPromise })
 
   const products = await payload.find({
     collection: 'products',
     draft: false,
     overrideAccess: false,
+    page,
+    limit: PAGE_SIZE,
     select: {
       title: true,
       slug: true,
       gallery: true,
       categories: true,
       priceInVND: true,
+      compareAtPriceInVND: true,
     },
     ...(sort ? { sort } : { sort: 'title' }),
     ...(searchValue || category
@@ -68,6 +83,11 @@ export default async function ShopPage({ searchParams }: Props) {
                           },
                         },
                         {
+                          sku: {
+                            like: searchValue,
+                          },
+                        },
+                        {
                           description: {
                             like: searchValue,
                           },
@@ -79,8 +99,8 @@ export default async function ShopPage({ searchParams }: Props) {
               ...(category
                 ? [
                     {
-                      categories: {
-                        contains: category,
+                      'categories.slug': {
+                        equals: category,
                       },
                     },
                   ]
@@ -93,13 +113,22 @@ export default async function ShopPage({ searchParams }: Props) {
 
   const resultsText = products.docs.length > 1 ? 'kết quả' : 'kết quả'
 
+  const buildPageUrl = (targetPage: number) => {
+    const params = new URLSearchParams()
+    if (searchValue) params.set('q', String(searchValue))
+    if (sort) params.set('sort', String(sort))
+    if (category) params.set('category', String(category))
+    if (targetPage > 1) params.set('page', String(targetPage))
+    return createUrl('/shop', params)
+  }
+
   return (
     <div>
       {searchValue ? (
         <p className="mb-4">
           {products.docs?.length === 0
             ? 'Không tìm thấy sản phẩm nào khớp với '
-            : `Tìm thấy ${products.docs.length} ${resultsText} cho `}
+            : `Tìm thấy ${products.totalDocs} ${resultsText} cho `}
           <span className="font-bold">&quot;{searchValue}&quot;</span>
         </p>
       ) : null}
@@ -110,10 +139,39 @@ export default async function ShopPage({ searchParams }: Props) {
 
       {products?.docs.length > 0 ? (
         <Grid className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-          {products.docs.map((product) => {
-            return <ProductGridItem key={product.id} product={product} />
+          {products.docs.map((product, index) => {
+            return (
+              <ProductGridItem key={product.id} priority={index === 0} product={product} />
+            )
           })}
         </Grid>
+      ) : null}
+
+      {products.totalPages > 1 ? (
+        <Pagination className="mt-8">
+          <PaginationContent>
+            {products.hasPrevPage ? (
+              <PaginationItem>
+                <PaginationPrevious href={buildPageUrl(page - 1)} />
+              </PaginationItem>
+            ) : null}
+            {Array.from({ length: products.totalPages }).map((_, index) => {
+              const targetPage = index + 1
+              return (
+                <PaginationItem key={targetPage}>
+                  <PaginationLink href={buildPageUrl(targetPage)} isActive={targetPage === page}>
+                    {targetPage}
+                  </PaginationLink>
+                </PaginationItem>
+              )
+            })}
+            {products.hasNextPage ? (
+              <PaginationItem>
+                <PaginationNext href={buildPageUrl(page + 1)} />
+              </PaginationItem>
+            ) : null}
+          </PaginationContent>
+        </Pagination>
       ) : null}
     </div>
   )

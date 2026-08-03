@@ -30,7 +30,9 @@ export const ArchiveBlock: React.FC<
     const fetchedProducts = await payload.find({
       collection: 'products',
       depth: 1,
+      draft: false,
       limit,
+      overrideAccess: false,
       ...(flattenedCategories && flattenedCategories.length > 0
         ? {
             where: {

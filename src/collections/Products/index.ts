@@ -61,6 +61,18 @@ export const ProductsCollection: CollectionOverride = ({ defaultCollection }) =>
         {
           fields: [
             {
+              name: 'shortDescription',
+              type: 'array',
+              label: 'Tóm tắt nổi bật',
+              fields: [
+                {
+                  name: 'text',
+                  type: 'text',
+                  required: true,
+                },
+              ],
+            },
+            {
               name: 'description',
               type: 'richText',
               editor: lexicalEditor({
@@ -144,6 +156,45 @@ export const ProductsCollection: CollectionOverride = ({ defaultCollection }) =>
           fields: [
             ...defaultCollection.fields,
             {
+              name: 'compareAtPriceInVND',
+              type: 'number',
+              label: 'Giá gốc trước giảm (VND)',
+              admin: {
+                description: 'Để trống nếu sản phẩm không giảm giá. Phải lớn hơn giá bán hiện tại.',
+              },
+              validate: (
+                value: number | null | undefined,
+                { siblingData }: { siblingData: { priceInVND?: number } },
+              ) => {
+                if (typeof value !== 'number') return true
+                const currentPrice = siblingData?.priceInVND
+                if (typeof currentPrice === 'number' && value <= currentPrice) {
+                  return 'Giá gốc phải lớn hơn giá bán hiện tại'
+                }
+                return true
+              },
+            },
+            {
+              name: 'specifications',
+              type: 'array',
+              label: 'Thông số kỹ thuật',
+              fields: [
+                {
+                  name: 'label',
+                  type: 'text',
+                  required: true,
+                },
+                {
+                  name: 'value',
+                  type: 'textarea',
+                  required: true,
+                  admin: {
+                    description: 'Nhiều dòng sẽ hiển thị dạng gạch đầu dòng.',
+                  },
+                },
+              ],
+            },
+            {
               name: 'relatedProducts',
               type: 'relationship',
               filterOptions: ({ id }) => {
@@ -206,6 +257,22 @@ export const ProductsCollection: CollectionOverride = ({ defaultCollection }) =>
       },
       hasMany: true,
       relationTo: 'categories',
+    },
+    {
+      name: 'brand',
+      type: 'relationship',
+      admin: {
+        position: 'sidebar',
+      },
+      relationTo: 'brands',
+    },
+    {
+      name: 'sku',
+      type: 'text',
+      label: 'Mã SP (SKU)',
+      admin: {
+        position: 'sidebar',
+      },
     },
     slugField(),
   ],

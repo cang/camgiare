@@ -7,12 +7,12 @@ export type SortFilterItem = {
 export const defaultSort: SortFilterItem = {
   slug: null,
   reverse: false,
-  title: 'Alphabetic A-Z',
+  title: 'Tên A-Z',
 }
 
 export const sorting: SortFilterItem[] = [
   defaultSort,
-  { slug: '-createdAt', reverse: true, title: 'Latest arrivals' },
-  { slug: 'priceInVND', reverse: false, title: 'Price: Low to high' }, // asc
-  { slug: '-priceInVND', reverse: true, title: 'Price: High to low' },
+  { slug: '-createdAt', reverse: true, title: 'Mới nhất' },
+  { slug: 'priceInVND', reverse: false, title: 'Giá: Thấp đến cao' }, // asc
+  { slug: '-priceInVND', reverse: true, title: 'Giá: Cao đến thấp' },
 ]

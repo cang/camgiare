@@ -78,6 +78,7 @@
     "@types/react-dom": "19.2.3",
     "@vercel/git-hooks": "^1.0.0",
     "@vitejs/plugin-react": "4.5.2",
+    "cheerio": "^1.2.0",
     "eslint": "^9.16.0",
     "eslint-config-next": "16.2.6",
     "eslint-plugin-jsx-a11y": "^6.10.2",
