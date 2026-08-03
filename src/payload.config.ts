@@ -19,6 +19,7 @@ import { Brands } from '@/collections/Brands'
 import { Categories } from '@/collections/Categories'
 import { Media } from '@/collections/Media'
 import { Pages } from '@/collections/Pages'
+import { Reviews } from '@/collections/Reviews'
 import { Services } from '@/collections/Services'
 import { Users } from '@/collections/Users'
 import { Footer } from '@/globals/Footer'
@@ -41,7 +42,7 @@ export default buildConfig({
     },
     user: Users.slug,
   },
-  collections: [Users, Pages, Services, Categories, Brands, Media],
+  collections: [Users, Pages, Services, Categories, Brands, Reviews, Media],
   db: mongooseAdapter({
     url: process.env.DATABASE_URL || '',
   }),

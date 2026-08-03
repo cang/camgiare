@@ -77,6 +77,7 @@ export interface Config {
     services: Service;
     categories: Category;
     brands: Brand;
+    reviews: Review;
     media: Media;
     forms: Form;
     'form-submissions': FormSubmission;
@@ -112,6 +113,7 @@ export interface Config {
     services: ServicesSelect<false> | ServicesSelect<true>;
     categories: CategoriesSelect<false> | CategoriesSelect<true>;
     brands: BrandsSelect<false> | BrandsSelect<true>;
+    reviews: ReviewsSelect<false> | ReviewsSelect<true>;
     media: MediaSelect<false> | MediaSelect<true>;
     forms: FormsSelect<false> | FormsSelect<true>;
     'form-submissions': FormSubmissionsSelect<false> | FormSubmissionsSelect<true>;
@@ -901,6 +903,10 @@ export interface Category {
   id: string;
   title: string;
   /**
+   * Đánh dấu nếu đây là danh mục phụ kiện (thẻ nhớ, nguồn, dây cáp...). Dùng để tự động gợi ý "Sản phẩm mua kèm" trên trang các sản phẩm không thuộc danh mục phụ kiện.
+   */
+  isAccessory?: boolean | null;
+  /**
    * When enabled, the slug will auto-generate from the title field on save and autosave.
    */
   generateSlug?: boolean | null;
@@ -1140,6 +1146,28 @@ export interface Address {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "reviews".
+ */
+export interface Review {
+  id: string;
+  product: string | Product;
+  rating: number;
+  authorName: string;
+  /**
+   * Không hiển thị công khai.
+   */
+  authorEmail: string;
+  comment: string;
+  /**
+   * Tự động gắn nếu người đánh giá đang đăng nhập.
+   */
+  customer?: (string | null) | User;
+  status?: ('pending' | 'approved') | null;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "form-submissions".
  */
 export interface FormSubmission {
@@ -1198,6 +1226,10 @@ export interface PayloadLockedDocument {
     | ({
         relationTo: 'brands';
         value: string | Brand;
+      } | null)
+    | ({
+        relationTo: 'reviews';
+        value: string | Review;
       } | null)
     | ({
         relationTo: 'media';
@@ -1535,6 +1567,7 @@ export interface ServicesSelect<T extends boolean = true> {
  */
 export interface CategoriesSelect<T extends boolean = true> {
   title?: T;
+  isAccessory?: T;
   generateSlug?: T;
   slug?: T;
   updatedAt?: T;
@@ -1550,6 +1583,21 @@ export interface BrandsSelect<T extends boolean = true> {
   description?: T;
   generateSlug?: T;
   slug?: T;
+  updatedAt?: T;
+  createdAt?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "reviews_select".
+ */
+export interface ReviewsSelect<T extends boolean = true> {
+  product?: T;
+  rating?: T;
+  authorName?: T;
+  authorEmail?: T;
+  comment?: T;
+  customer?: T;
+  status?: T;
   updatedAt?: T;
   createdAt?: T;
 }

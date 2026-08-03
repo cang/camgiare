@@ -3,9 +3,12 @@ import type { Media } from '@/payload-types'
 import { RenderBlocks } from '@/blocks/RenderBlocks'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
 import { BrandInfo } from '@/components/product/BrandInfo'
+import { BundleProducts } from '@/components/product/BundleProducts'
 import { Gallery } from '@/components/product/Gallery'
 import { ProductDescription } from '@/components/product/ProductDescription'
+import { RecentlyViewed } from '@/components/product/RecentlyViewed'
 import { RelatedProducts } from '@/components/product/RelatedProducts'
+import { Reviews } from '@/components/product/Reviews'
 import { SpecsTable } from '@/components/product/SpecsTable'
 import { StickyAddToCart } from '@/components/product/StickyAddToCart'
 import { StoreInfoSidebar } from '@/components/product/StoreInfoSidebar'
@@ -163,10 +166,16 @@ export default async function ProductPage({ params }: Args) {
 
       <StickyAddToCart product={product} targetId="product-buybox" />
 
+      <div className="container">
+        <BundleProducts product={product} />
+      </div>
+
       {product.layout?.length ? <RenderBlocks blocks={product.layout} /> : <></>}
 
       <div className="container">
         <RelatedProducts product={product} />
+        <RecentlyViewed currentProductSlug={product.slug!} />
+        <Reviews product={product} />
       </div>
     </React.Fragment>
   )
