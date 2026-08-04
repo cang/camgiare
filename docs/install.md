@@ -14,6 +14,8 @@ SSH vào VPS bằng user root (Vietnix cấp sẵn). Các bước cài đặt h�
 apt update && apt upgrade -y
 ```
 
+> Lệnh trên có thể hiện prompt dpkg hỏi về file cấu hình đã bị chỉnh sửa cục bộ (thường gặp nhất là `/etc/ssh/sshd_config`, do OS image của Vietnix đã tùy biến sẵn, không phải do bạn tự sửa). Bấm `3` để xem diff trước — nếu khác biệt không đáng kể (vd chỉ là 1 dòng bị comment nhưng giá trị mặc định vẫn giống), chọn `2` (giữ bản local) là an toàn nhất, tránh reset về cấu hình gốc có thể đổi hành vi đăng nhập SSH ngoài ý muốn.
+
 **Nhưng không chạy process Node.js/PM2 bằng root** — nếu app có lỗ hổng, attacker sẽ có toàn quyền trên cả VPS thay vì chỉ giới hạn trong 1 user. Tạo riêng 1 user chỉ để chạy app, không thêm vào group `sudo`:
 
 ```bash
@@ -32,6 +34,8 @@ ufw allow 443/tcp
 ufw enable
 ```
 
+> `ufw enable` sẽ hỏi xác nhận "Command may disrupt existing ssh connections. Proceed with operation (y|n)?" — trả lời `y` là an toàn, **miễn là đã chạy `ufw allow OpenSSH` trước** như thứ tự ở trên (port 22 không bị chặn). Nếu lỡ enable trước khi allow SSH, sẽ mất kết nối ngay lập tức và phải nhờ Vietnix mở console để vào sửa lại.
+
 ## 2. Cài Node.js
 
 Repo yêu cầu Node `^18.20.2 || >=20.9.0` (xem `engines` trong `package.json`). Ubuntu 24.04 mặc định có bản Node cũ trong apt, nên cài qua NodeSource (khuyến nghị Node 22 LTS):
@@ -42,6 +46,8 @@ apt install -y nodejs
 node -v
 npm -v
 ```
+
+> Sau `npm install` ở các bước sau, thấy các dòng `npm notice` (vd "X packages are looking for funding", "New major version of npm available") — đây chỉ là thông báo, không phải lỗi. Không cần update npm lên major version mới, bản đi kèm Node LTS là đủ dùng và tránh rủi ro không tương đương với các dependency đã ghim version cụ thể trong `package.json`.
 
 Package manager của project là **npm** (không phải pnpm, dù vài script trong `package.json` còn nhắc pnpm — bản copy này đã bỏ workspace). Cài `pm2` toàn cục để quản lý process:
 
@@ -134,6 +140,18 @@ deploy$ ssh-keyscan github.com >> ~/.ssh/known_hosts
 deploy$ cd /var/www/camgiare
 deploy$ git clone git@github.com:<user>/<repo>.git .
 ```
+
+> **Nhớ dấu `.` ở cuối lệnh clone** — nó bảo git clone thẳng vào thư mục hiện tại. Nếu quên, git sẽ tự tạo thêm 1 thư mục con trùng tên repo bên trong (`/var/www/camgiare/camgiare/...`). Cách sửa nếu lỡ quên (dùng bash, đứng trong thư mục con vừa bị tạo thừa):
+>
+> ```bash
+> deploy$ cd /var/www/camgiare/camgiare
+> deploy$ shopt -s dotglob
+> deploy$ mv * ../
+> deploy$ cd ..
+> deploy$ rmdir camgiare
+> ```
+>
+> `shopt -s dotglob` để `mv *` gộp luôn cả file ẩn (`.git`, `.gitignore`...), không riêng file thường. Kiểm tra lại bằng `ls -la /var/www/camgiare` phải thấy `package.json`, `src/`... nằm trực tiếp, không còn thư mục con.
 
 > Deploy key này chỉ gắn được với **1 repo duy nhất** — đúng ý nghĩa "chỉ đọc code của app này", không phải SSH key dùng chung cho cả tài khoản GitHub.
 
@@ -255,7 +273,23 @@ certbot --nginx -d camgiare.vn -d www.camgiare.vn
 
 Certbot tự cấu hình lại block `server` để redirect HTTP → HTTPS và tự gia hạn chứng chỉ (systemd timer `certbot.timer` đã bật sẵn sau khi cài).
 
-## 9. Backup MongoDB
+> `/etc/nginx/sites-available/` chỉ là nơi định nghĩa cấu hình — Nginx chỉ chạy file đã symlink sang `/etc/nginx/sites-enabled/`. Ubuntu cài Nginx sẵn tự symlink file `default` (catch-all `listen 80 default_server`) — nên xoá symlink này đi sau khi đã bật `camgiare`, để tránh nhầm lẫn và để request bằng IP trần/domain lạ không hiện trang "Welcome to nginx":
+>
+> ```bash
+> rm /etc/nginx/sites-enabled/default
+> nginx -t
+> systemctl reload nginx
+> ```
+
+## 9. Tạo user admin đầu tiên (Payload)
+
+Không cần lệnh/script gì trên server — collection `Users` (`src/collections/Users/index.ts`) cho `create: publicAccess`, và hook `ensureFirstUserIsAdmin` (`src/collections/Users/hooks/ensureFirstUserIsAdmin.ts`) tự gán role `admin` cho **user đầu tiên** được tạo trong hệ thống, bất kể chọn role gì.
+
+Chỉ cần vào `https://camgiare.vn/admin` — vì collection `Users` chưa có document nào, Payload tự hiện màn hình "Create your first user", điền email/password ở đó là xong.
+
+Muốn tạo thêm admin thứ 2 trở đi: phải đăng nhập bằng admin hiện có rồi vào Users → Create New → tick role `admin` — field `roles` chỉ admin mới có quyền set (`adminOnlyFieldAccess`), tự đăng ký công khai chỉ tạo được role `customer` mặc định.
+
+## 10. Backup MongoDB
 
 Không có replica set nên không có failover tự động — backup định kỳ là bắt buộc. Ví dụ cron chạy `mongodump` hàng đêm (chạy bằng root):
 
@@ -269,7 +303,7 @@ crontab -e
 
 Nên đồng bộ thư mục backup này ra một nơi khác VPS (vd rclone lên cloud storage) để tránh mất dữ liệu nếu VPS gặp sự cố phần cứng.
 
-## 10. Quy trình deploy khi có code mới
+## 11. Quy trình deploy khi có code mới
 
 Chạy dưới user `deploy` (`su - deploy` từ root nếu đang ở phiên root):
 
@@ -281,7 +315,7 @@ deploy$ npm run build
 deploy$ pm2 restart camgiare
 ```
 
-## 11. Việc còn để sau (chưa cần làm ngay)
+## 12. Việc còn để sau (chưa cần làm ngay)
 
 - **MinIO**: hiện ảnh vẫn lưu trực tiếp trên disk qua `staticDir` (`src/collections/Media.ts`). Sẽ chuyển sang MinIO + `@payloadcms/storage-s3` khi có số liệu dung lượng ảnh thật sau migrate — xem quyết định đã ghi lại, không cần làm ở bước cài đặt ban đầu này.
 - **Cổng thanh toán VN** (VNPay/Momo/ZaloPay): `stripeAdapter` hiện có trong `src/plugins/index.ts` nhưng chưa nối để dùng thật.
