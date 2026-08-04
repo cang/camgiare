@@ -10,6 +10,7 @@ import {
   PaginationNext,
   PaginationPrevious,
 } from '@/components/ui/pagination'
+import { priceRanges } from '@/lib/constants'
 import { createUrl } from '@/utilities/createUrl'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
@@ -24,10 +25,10 @@ type Props = {
 }
 
 export async function generateMetadata({ searchParams }: Props): Promise<Metadata> {
-  const { q, sort, category } = await searchParams
+  const { q, sort, category, brand, priceRange } = await searchParams
   // Các biến thể lọc/sắp xếp/tìm kiếm đều canonical về /shop sạch, và không index riêng để
   // tránh trùng lặp nội dung với chính nó.
-  const isFiltered = Boolean(q || sort || category)
+  const isFiltered = Boolean(q || sort || category || brand || priceRange)
 
   return {
     alternates: {
@@ -45,9 +46,22 @@ export async function generateMetadata({ searchParams }: Props): Promise<Metadat
 }
 
 export default async function ShopPage({ searchParams }: Props) {
-  const { q: searchValue, sort, category, page: pageParam } = await searchParams
+  const {
+    q: searchValue,
+    sort,
+    category,
+    brand,
+    priceRange,
+    page: pageParam,
+  } = await searchParams
   const page = Math.max(1, Number(pageParam) || 1)
   const payload = await getPayload({ config: configPromise })
+
+  const brandSlugs = brand ? String(brand).split(',').filter(Boolean) : []
+  const priceRangeItem = priceRange
+    ? priceRanges.find((item) => item.key === priceRange)
+    : undefined
+  const hasFilters = Boolean(searchValue || category || brandSlugs.length || priceRangeItem)
 
   const products = await payload.find({
     collection: 'products',
@@ -60,11 +74,12 @@ export default async function ShopPage({ searchParams }: Props) {
       slug: true,
       gallery: true,
       categories: true,
+      brand: true,
       priceInVND: true,
       compareAtPriceInVND: true,
     },
     ...(sort ? { sort } : { sort: 'title' }),
-    ...(searchValue || category
+    ...(hasFilters
       ? {
           where: {
             and: [
@@ -105,6 +120,29 @@ export default async function ShopPage({ searchParams }: Props) {
                     },
                   ]
                 : []),
+              ...(brandSlugs.length > 0
+                ? [
+                    {
+                      'brand.slug': {
+                        in: brandSlugs,
+                      },
+                    },
+                  ]
+                : []),
+              ...(priceRangeItem
+                ? [
+                    {
+                      priceInVND: {
+                        ...(typeof priceRangeItem.min === 'number'
+                          ? { greater_than_equal: priceRangeItem.min }
+                          : {}),
+                        ...(typeof priceRangeItem.max === 'number'
+                          ? { less_than_equal: priceRangeItem.max }
+                          : {}),
+                      },
+                    },
+                  ]
+                : []),
             ],
           },
         }
@@ -118,6 +156,8 @@ export default async function ShopPage({ searchParams }: Props) {
     if (searchValue) params.set('q', String(searchValue))
     if (sort) params.set('sort', String(sort))
     if (category) params.set('category', String(category))
+    if (brand) params.set('brand', String(brand))
+    if (priceRange) params.set('priceRange', String(priceRange))
     if (targetPage > 1) params.set('page', String(targetPage))
     return createUrl('/shop', params)
   }

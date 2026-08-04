@@ -2,10 +2,13 @@ import { ArchiveBlock } from '@/blocks/ArchiveBlock/Component'
 import { BannerBlock } from '@/blocks/Banner/Component'
 import { CallToActionBlock } from '@/blocks/CallToAction/Component'
 import { CarouselBlock } from '@/blocks/Carousel/Component'
+import { CategoryShowcaseBlock } from '@/blocks/CategoryShowcase/Component'
 import { ContentBlock } from '@/blocks/Content/Component'
 import { FormBlock } from '@/blocks/Form/Component'
 import { MediaBlock } from '@/blocks/MediaBlock/Component'
+import { ProductHeroBlock } from '@/blocks/ProductHero/Component'
 import { ThreeItemGridBlock } from '@/blocks/ThreeItemGrid/Component'
+import { TrustBadgesBlock } from '@/blocks/TrustBadges/Component'
 import { toKebabCase } from '@/utilities/toKebabCase'
 import React, { Fragment } from 'react'
 
@@ -15,11 +18,14 @@ const blockComponents = {
   archive: ArchiveBlock,
   banner: BannerBlock,
   carousel: CarouselBlock,
+  categoryShowcase: CategoryShowcaseBlock,
   content: ContentBlock,
   cta: CallToActionBlock,
   formBlock: FormBlock,
   mediaBlock: MediaBlock,
+  productHero: ProductHeroBlock,
   threeItemGrid: ThreeItemGridBlock,
+  trustBadges: TrustBadgesBlock,
 }
 
 export const RenderBlocks: React.FC<{

@@ -517,6 +517,9 @@ export interface Page {
     media?: (string | null) | Media;
   };
   layout: (
+    | ProductHeroBlock
+    | TrustBadgesBlock
+    | CategoryShowcaseBlock
     | CallToActionBlock
     | ContentBlock
     | MediaBlock
@@ -863,6 +866,93 @@ export interface Form {
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ProductHeroBlock".
+ */
+export interface ProductHeroBlock {
+  eyebrow?: string | null;
+  heading: string;
+  subheading?: string | null;
+  media: string | Media;
+  /**
+   * Ví dụ: "Chỉ từ ₫2.230.000". Để trống nếu không muốn hiện nhãn giá.
+   */
+  priceTagText?: string | null;
+  links?:
+    | {
+        link: {
+          type?: ('reference' | 'custom') | null;
+          newTab?: boolean | null;
+          reference?:
+            | ({
+                relationTo: 'pages';
+                value: string | Page;
+              } | null)
+            | ({
+                relationTo: 'services';
+                value: string | Service;
+              } | null);
+          url?: string | null;
+          label: string;
+          /**
+           * Choose how the link should be rendered.
+           */
+          appearance?: ('default' | 'outline') | null;
+        };
+        id?: string | null;
+      }[]
+    | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'productHero';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TrustBadgesBlock".
+ */
+export interface TrustBadgesBlock {
+  items?:
+    | {
+        icon: 'truck' | 'shield' | 'mapPin' | 'refresh';
+        label: string;
+        id?: string | null;
+      }[]
+    | null;
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'trustBadges';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CategoryShowcaseBlock".
+ */
+export interface CategoryShowcaseBlock {
+  heading?: string | null;
+  categories: (string | Category)[];
+  id?: string | null;
+  blockName?: string | null;
+  blockType: 'categoryShowcase';
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "categories".
+ */
+export interface Category {
+  id: string;
+  title: string;
+  /**
+   * Đánh dấu nếu đây là danh mục phụ kiện (thẻ nhớ, nguồn, dây cáp...). Dùng để tự động gợi ý "Sản phẩm mua kèm" trên trang các sản phẩm không thuộc danh mục phụ kiện.
+   */
+  isAccessory?: boolean | null;
+  /**
+   * When enabled, the slug will auto-generate from the title field on save and autosave.
+   */
+  generateSlug?: boolean | null;
+  slug: string;
+  updatedAt: string;
+  createdAt: string;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
  * via the `definition` "ArchiveBlock".
  */
 export interface ArchiveBlock {
@@ -894,25 +984,6 @@ export interface ArchiveBlock {
   id?: string | null;
   blockName?: string | null;
   blockType: 'archive';
-}
-/**
- * This interface was referenced by `Config`'s JSON-Schema
- * via the `definition` "categories".
- */
-export interface Category {
-  id: string;
-  title: string;
-  /**
-   * Đánh dấu nếu đây là danh mục phụ kiện (thẻ nhớ, nguồn, dây cáp...). Dùng để tự động gợi ý "Sản phẩm mua kèm" trên trang các sản phẩm không thuộc danh mục phụ kiện.
-   */
-  isAccessory?: boolean | null;
-  /**
-   * When enabled, the slug will auto-generate from the title field on save and autosave.
-   */
-  generateSlug?: boolean | null;
-  slug: string;
-  updatedAt: string;
-  createdAt: string;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -1376,6 +1447,9 @@ export interface PagesSelect<T extends boolean = true> {
   layout?:
     | T
     | {
+        productHero?: T | ProductHeroBlockSelect<T>;
+        trustBadges?: T | TrustBadgesBlockSelect<T>;
+        categoryShowcase?: T | CategoryShowcaseBlockSelect<T>;
         cta?: T | CallToActionBlockSelect<T>;
         content?: T | ContentBlockSelect<T>;
         mediaBlock?: T | MediaBlockSelect<T>;
@@ -1397,6 +1471,59 @@ export interface PagesSelect<T extends boolean = true> {
   updatedAt?: T;
   createdAt?: T;
   _status?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "ProductHeroBlock_select".
+ */
+export interface ProductHeroBlockSelect<T extends boolean = true> {
+  eyebrow?: T;
+  heading?: T;
+  subheading?: T;
+  media?: T;
+  priceTagText?: T;
+  links?:
+    | T
+    | {
+        link?:
+          | T
+          | {
+              type?: T;
+              newTab?: T;
+              reference?: T;
+              url?: T;
+              label?: T;
+              appearance?: T;
+            };
+        id?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "TrustBadgesBlock_select".
+ */
+export interface TrustBadgesBlockSelect<T extends boolean = true> {
+  items?:
+    | T
+    | {
+        icon?: T;
+        label?: T;
+        id?: T;
+      };
+  id?: T;
+  blockName?: T;
+}
+/**
+ * This interface was referenced by `Config`'s JSON-Schema
+ * via the `definition` "CategoryShowcaseBlock_select".
+ */
+export interface CategoryShowcaseBlockSelect<T extends boolean = true> {
+  heading?: T;
+  categories?: T;
+  id?: T;
+  blockName?: T;
 }
 /**
  * This interface was referenced by `Config`'s JSON-Schema
@@ -2040,6 +2167,10 @@ export interface PayloadMigrationsSelect<T extends boolean = true> {
  */
 export interface Header {
   id: string;
+  /**
+   * Số hotline hiển thị trên thanh trên cùng của header. Để trống nếu chưa có.
+   */
+  phone?: string | null;
   navItems?:
     | {
         link: {
@@ -2110,6 +2241,7 @@ export interface StoreInfo {
  * via the `definition` "header_select".
  */
 export interface HeaderSelect<T extends boolean = true> {
+  phone?: T;
   navItems?:
     | T
     | {

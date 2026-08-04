@@ -18,6 +18,7 @@ export function OpenCartButton({
       className="navLink relative items-end hover:cursor-pointer"
       {...rest}
     >
+      <ShoppingCart className="h-4 w-4" />
       <span>Giỏ hàng</span>
 
       {quantity ? (

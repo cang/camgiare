@@ -2,7 +2,10 @@ import type { CollectionConfig } from 'payload'
 
 import { Banner } from '@/blocks/Banner/config'
 import { Carousel } from '@/blocks/Carousel/config'
+import { CategoryShowcase } from '@/blocks/CategoryShowcase/config'
+import { ProductHero } from '@/blocks/ProductHero/config'
 import { ThreeItemGrid } from '@/blocks/ThreeItemGrid/config'
+import { TrustBadges } from '@/blocks/TrustBadges/config'
 import { generatePreviewPath } from '@/utilities/generatePreviewPath'
 import { adminOnly } from '@/access/adminOnly'
 import { Archive } from '@/blocks/ArchiveBlock/config'
@@ -88,6 +91,9 @@ export const Pages: CollectionConfig = {
               name: 'layout',
               type: 'blocks',
               blocks: [
+                ProductHero,
+                TrustBadges,
+                CategoryShowcase,
                 CallToAction,
                 Content,
                 MediaBlock,

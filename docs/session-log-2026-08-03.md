@@ -174,3 +174,70 @@ tóm tắt hướng đi bên dưới để không phụ thuộc file đó).
 trang chủ, gõ SKU chuyển đúng sang `/shop?q=SKU` ra đúng sản phẩm dù SKU không nằm trong title,
 autocomplete hiện đúng gợi ý kèm giá, phím ↑/↓ đổi highlight đúng và Enter điều hướng đúng sản
 phẩm đang highlight.
+
+## 6. Phase 2 trang chi tiết sản phẩm: Sản phẩm mua kèm / Sản phẩm bạn đã xem / Đánh giá sản phẩm
+
+Làm nốt 2 việc còn treo ở mục 4 ("Sản phẩm bạn đã xem", "Đánh giá sản phẩm") + 1 việc mới phát
+sinh trong phiên này ("Sản phẩm mua kèm"), theo tham khảo layout của
+`vuhoangtelecom.vn/san-pham/camera-wifi-pt-cruiser-sc-8mp-imou-ipc-k7fp-8v0n/`. Thứ tự hiển thị
+trên trang theo yêu cầu: buybox → **Sản phẩm mua kèm** → `RenderBlocks` (layout blocks) →
+**Sản phẩm liên quan** → **Sản phẩm bạn đã xem** → **Đánh giá về sản phẩm**.
+
+**Sản phẩm mua kèm — quyết định nguyên tắc quan trọng:** ban đầu định làm field quan hệ
+`bundleProducts` để admin tự chọn tay (giống `relatedProducts`), nhưng **user yêu cầu đổi sang cơ
+chế tự động theo nhóm danh mục** (cùng nguyên tắc category-based như "Sản phẩm liên quan", không
+phải chọn tay). Cách làm:
+- Thêm field `isAccessory` (checkbox) vào `Categories` (`src/collections/Categories.ts`) — đánh
+  dấu danh mục nào là "danh mục phụ kiện" (thẻ nhớ, nguồn, dây cáp...).
+- `src/components/product/BundleProducts.tsx` (server): nếu sản phẩm đang xem **thuộc chính** một
+  category được đánh dấu `isAccessory` thì ẩn hẳn section (phụ kiện không tự gợi ý phụ kiện khác).
+  Ngược lại, query tối đa 4 sản phẩm published thuộc (các) category có `isAccessory=true`, khác
+  category của sản phẩm đang xem, loại trừ chính nó.
+- `BundleProducts.client.tsx`: liệt kê sản phẩm chính (khoá, luôn tick) + các gợi ý (checkbox chọn/
+  bỏ), tính tổng tiền theo lựa chọn, nút "Thêm tất cả vào giỏ" gọi `addItem` tuần tự qua `useCart()`.
+- **Cần làm để thấy section này lên trang**: vào admin → Categories → tick "Danh mục phụ kiện" cho
+  category phụ kiện thật (hiện DB seed/import chưa có category nào được đánh dấu, nên section này
+  đang ẩn ở mọi sản phẩm cho tới khi admin gắn cờ).
+
+**Sản phẩm bạn đã xem** (`src/components/product/RecentlyViewed.tsx`, client component):
+- Lưu danh sách slug đã xem vào `localStorage` (key `recentlyViewedProducts`, tối đa 12), tự thêm
+  slug hiện tại lên đầu khi mount.
+- Fetch các sản phẩm khác qua REST API sẵn có `/api/products?where=...` (cùng pattern
+  `JSON.stringify(where)` như `SearchBar.tsx`), không cần route/API riêng.
+- Ẩn hẳn section nếu chưa xem sản phẩm nào khác (không có layout-shift giả).
+
+**Đánh giá sản phẩm** — collection mới `src/collections/Reviews.ts` (plain `CollectionConfig`,
+đăng ký thẳng trong `payload.config.ts`, không qua ecommerce plugin):
+- Field: `product` (relationship → products, required), `rating` (number 1-5), `authorName`,
+  `authorEmail`, `comment`, `customer` (relationship → users, tự gán qua hook `beforeChange` từ
+  `req.user` nếu đang đăng nhập, không cho client tự set), `status` (select
+  `pending`/`approved`, mặc định `pending`, field-access `adminOnlyFieldAccess` cho create/update —
+  chặn khách tự gửi thẳng `approved`).
+- Access: `create: publicAccess` (ai cũng gửi được), `read` công khai chỉ thấy `status: approved`
+  (admin thấy hết), `update`/`delete`: `adminOnly`.
+- Duyệt review: **không cần code thêm** — dùng bulk-edit có sẵn của Payload admin (tick nhiều dòng
+  ở list Reviews → nút "Edit" → set `status = approved` hàng loạt).
+- UI: `StarRating.tsx` (hiển thị sao, dùng chung cho list + trung bình), `ReviewForm.tsx` (client,
+  react-hook-form, POST thẳng `/api/reviews`, tự điền tên/email nếu đã đăng nhập qua `useAuth()`),
+  `Reviews.tsx` (server, query review `approved` theo `product`, tính điểm trung bình từ tập đã
+  fetch — giới hạn 50 review/trang, chưa phân trang riêng).
+
+**Verify đã làm**: `npm run generate:types` chạy sạch (sinh đúng `Review` interface +
+`isAccessory`); `tsc --noEmit` sạch trên toàn bộ file mới/sửa (6 lỗi implicit-any còn lại ở
+`CartModal.tsx`/`CheckoutPage.tsx` là lỗi cũ, không liên quan, đã xác nhận lại lần nữa). `npm run
+lint` vẫn lỗi cấu hình ESLint có sẵn từ trước (circular JSON, xảy ra trước khi lint file nào) —
+chưa sửa, ngoài phạm vi phiên này. Đã verify runtime thật qua dev server đang chạy sẵn lúc đó
+(không phải Playwright lần này): `curl /api/reviews` trả đúng 1 review có sẵn trong DB (do user tự
+tay gửi + duyệt qua UI thật trong lúc code đang được viết) với `status: approved`, và HTML trang
+sản phẩm render đúng "5.0/5 · 1 đánh giá" + nội dung review + form gửi đánh giá mới. "Sản phẩm mua
+kèm" xác nhận **đúng như thiết kế** không hiện (chưa có category nào gắn `isAccessory`), "Sản phẩm
+bạn đã xem" không kiểm được qua curl (cần localStorage/browser thật).
+
+**Việc còn để dành / chưa làm:**
+- Chưa có category nào được gắn `isAccessory=true` trong DB thật — cần vào admin gắn tay thì
+  "Sản phẩm mua kèm" mới xuất hiện trên site.
+- Trung bình sao của `Reviews.tsx` tính trên tối đa 50 review gần nhất (không phải toàn bộ nếu
+  sản phẩm có >50 review), chưa có phân trang review riêng — chấp nhận được ở quy mô hiện tại.
+- Chưa test luồng thật qua Playwright cho phiên này (chỉ verify qua curl + HTML thật từ dev server
+  đang chạy sẵn) — nếu cần verify UI kỹ hơn (form validate, toast, checkbox mua kèm) thì nên chạy
+  Playwright ở phiên sau.

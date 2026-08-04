@@ -2,9 +2,11 @@
 import { CMSLink } from '@/components/Link'
 import { Cart } from '@/components/Cart'
 import { OpenCartButton } from '@/components/Cart/OpenCart'
+import { Phone } from 'lucide-react'
 import Link from 'next/link'
 import React, { Suspense } from 'react'
 
+import { AccountLink } from './AccountLink'
 import { MobileMenu } from './MobileMenu'
 import type { Header } from 'src/payload-types'
 
@@ -23,6 +25,29 @@ export function HeaderClient({ header }: Props) {
 
   return (
     <div className="relative z-20 border-b">
+      <div className="flex items-center justify-between gap-4 bg-foreground px-4 py-2 text-xs text-background md:px-0">
+        <div className="container flex items-center justify-between">
+          {header.phone ? (
+            <a className="flex items-center gap-1.5 font-medium" href={`tel:${header.phone}`}>
+              <Phone className="h-3.5 w-3.5" />
+              Hotline lắp đặt: <span className="font-semibold">{header.phone}</span>
+            </a>
+          ) : (
+            <span />
+          )}
+          <div className="hidden items-center gap-3 opacity-80 sm:flex">
+            <span>Giao hàng nhanh 24h</span>
+            <span aria-hidden className="opacity-40">
+              |
+            </span>
+            <span>Bảo hành chính hãng</span>
+            <span aria-hidden className="opacity-40">
+              |
+            </span>
+            <span>Lắp đặt toàn quốc</span>
+          </div>
+        </div>
+      </div>
       <nav className="flex items-center md:items-end justify-between container pt-2">
         <div className="block flex-none md:hidden">
           <Suspense fallback={null}>
@@ -61,7 +86,10 @@ export function HeaderClient({ header }: Props) {
             </Suspense>
           </div>
 
-          <div className="flex justify-end md:w-1/3 gap-4">
+          <div className="flex items-end justify-end md:w-1/3 gap-4">
+            <div className="hidden md:block">
+              <AccountLink />
+            </div>
             <Suspense fallback={<OpenCartButton />}>
               <Cart />
             </Suspense>
