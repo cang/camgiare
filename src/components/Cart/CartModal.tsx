@@ -20,7 +20,7 @@ import { DeleteItemButton } from './DeleteItemButton'
 import { EditItemQuantityButton } from './EditItemQuantityButton'
 import { OpenCartButton } from './OpenCart'
 import { Button } from '@/components/ui/button'
-import { Product } from '@/payload-types'
+import { Product, VariantOption } from '@/payload-types'
 
 export function CartModal() {
   const { cart } = useCart()
@@ -87,20 +87,24 @@ export function CartModal() {
                   if (isVariant) {
                     price = variant?.priceInVND
 
-                    const imageVariant = product.gallery?.find((item) => {
-                      if (!item.variantOption) return false
-                      const variantOptionID =
-                        typeof item.variantOption === 'object'
-                          ? item.variantOption.id
-                          : item.variantOption
+                    const imageVariant = product.gallery?.find(
+                      (item: NonNullable<Product['gallery']>[number]) => {
+                        if (!item.variantOption) return false
+                        const variantOptionID =
+                          typeof item.variantOption === 'object'
+                            ? item.variantOption.id
+                            : item.variantOption
 
-                      const hasMatch = variant?.options?.some((option) => {
-                        if (typeof option === 'object') return option.id === variantOptionID
-                        else return option === variantOptionID
-                      })
+                        const hasMatch = variant?.options?.some(
+                          (option: string | VariantOption) => {
+                            if (typeof option === 'object') return option.id === variantOptionID
+                            else return option === variantOptionID
+                          },
+                        )
 
-                      return hasMatch
-                    })
+                        return hasMatch
+                      },
+                    )
 
                     if (imageVariant && typeof imageVariant.image === 'object') {
                       image = imageVariant.image
@@ -134,7 +138,7 @@ export function CartModal() {
                             {isVariant && variant ? (
                               <p className="text-sm text-neutral-500 dark:text-neutral-400 capitalize">
                                 {variant.options
-                                  ?.map((option) => {
+                                  ?.map((option: string | VariantOption) => {
                                     if (typeof option === 'object') return option.label
                                     return null
                                   })
