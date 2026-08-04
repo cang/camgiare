@@ -46,7 +46,7 @@ export const RenderBlocks: React.FC<{
 
             if (Block) {
               return (
-                <div className="my-16" key={index}>
+                <div className="my-16 first:mt-0" key={index}>
                   {/* eslint-disable-next-line @typescript-eslint/ban-ts-comment */}
                   {/* @ts-ignore - có sự không khớp kiểu dữ liệu ở đây */}
                   <Block id={toKebabCase(blockName!)} {...block} />

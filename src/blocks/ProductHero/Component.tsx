@@ -11,7 +11,7 @@ export const ProductHeroBlock: React.FC<
 > = ({ eyebrow, heading, links, media, priceTagText, subheading }) => {
   return (
     <div className="container">
-      <div className="flex flex-col items-center gap-10 py-8 md:flex-row md:py-14">
+      <div className="flex flex-col items-center gap-10 md:flex-row md:items-start">
         <div className="flex-1">
           {eyebrow && (
             <span className="font-mono text-xs uppercase tracking-widest text-primary">

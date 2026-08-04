@@ -103,6 +103,12 @@ mongodb://127.0.0.1:27017/camgiare
 
 ## 4. Lấy code lên server
 
+Cài git (chạy bằng root, Ubuntu 24.04 không có sẵn git mặc định):
+
+```bash
+apt install -y git
+```
+
 Root tạo thư mục và giao quyền cho `deploy`, rồi chuyển sang user `deploy` để làm các bước còn lại (git, npm, build, pm2) — từ đây trở đi, mọi lệnh có tiền tố `deploy$` là chạy dưới user `deploy`, không phải root:
 
 ```bash
@@ -111,10 +117,25 @@ chown deploy:deploy /var/www/camgiare
 su - deploy
 ```
 
+Tạo SSH deploy key cho user `deploy` để clone/pull không cần nhập username/token mỗi lần (không dùng HTTPS — GitHub không nhận mật khẩu tài khoản qua git nữa, phải dùng Personal Access Token rất bất tiện để lặp lại mỗi lần deploy):
+
+```bash
+deploy$ ssh-keygen -t ed25519 -C "deploy@camgiare-vps" -f ~/.ssh/id_ed25519 -N ""
+deploy$ cat ~/.ssh/id_ed25519.pub
+```
+
+Copy nội dung public key vừa in ra, vào GitHub repo → **Settings → Deploy keys → Add deploy key** — dán key, **không tick "Allow write access"** (chỉ cần đọc để pull code, không cần push từ server). Add luôn `github.com` vào known_hosts để lần đầu `git clone` không hỏi xác nhận fingerprint:
+
+```bash
+deploy$ ssh-keyscan github.com >> ~/.ssh/known_hosts
+```
+
 ```bash
 deploy$ cd /var/www/camgiare
-deploy$ git clone <repo-url> .
+deploy$ git clone git@github.com:<user>/<repo>.git .
 ```
+
+> Deploy key này chỉ gắn được với **1 repo duy nhất** — đúng ý nghĩa "chỉ đọc code của app này", không phải SSH key dùng chung cho cả tài khoản GitHub.
 
 Cài dependency (dùng npm, không dùng pnpm — theo `.npmrc` đã set `legacy-peer-deps=true`):
 
