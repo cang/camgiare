@@ -2,30 +2,41 @@ import ExcelJS from 'exceljs'
 import fs from 'node:fs'
 import path from 'node:path'
 
-const HEADER_ALIASES = {
+// Alias "cứng" — mỗi header chỉ map vào đúng 1 field cụ thể. Cột không nằm trong danh sách
+// này (và không phải cột ảnh) được giữ lại nguyên vẹn vào `extraFields` thay vì bị bỏ qua —
+// mỗi file báo giá nhà cung cấp có bộ cột khác nhau (VD "Độ phân giải", "Chức năng", "Tần
+// số", "Pin"...), không thể liệt kê hết trước; extraFields để Bước 2 (agent) tự quyết định
+// đưa vào specifications hay description.
+const CORE_ALIASES = {
   'mã sản phẩm': 'sku',
+  'mã hàng': 'sku',
   'thương hiệu': 'brandNameFromSheet',
-  'mô tả': 'titleFromSheet',
-  'chứng chỉ': 'certifications',
+  'tên sản phẩm': 'titleFromSheet',
   'mô tả chi tiết': 'detailedDescriptionFromSheet',
+  'chứng chỉ': 'certifications',
   'bảo hành (tháng)': 'warrantyMonths',
+  'bảo hành': 'warrantyText',
   'giá lẻ (có vat)': 'priceInVNDFromSheet',
+  'giá bán lẻ': 'priceInVNDFromSheet',
   'tình trạng hàng': 'stockStatusTextFromSheet',
+  'tình trạng': 'stockStatusTextFromSheet',
+  'hình ảnh': 'imageColumn', // không map vào field text nào — ảnh lấy qua embedded image, xử lý riêng
 }
 
 function parseArgs(argv) {
-  const args = { file: null, sheet: null, out: null }
+  const args = { file: null, sheet: null, out: null, defaultBrand: null }
   for (const arg of argv) {
     const [key, value] = arg.replace(/^--/, '').split('=')
     if (key === 'file' && value) args.file = value
     if (key === 'sheet' && value) args.sheet = value
     if (key === 'out' && value) args.out = value
+    if (key === 'default-brand' && value) args.defaultBrand = value
   }
   return args
 }
 
 function normalizeHeader(text) {
-  return (text || '').toString().trim().toLowerCase()
+  return (text || '').toString().normalize('NFC').trim().toLowerCase()
 }
 
 function slugifySku(sku) {
@@ -47,79 +58,158 @@ function parseVndNumber(text) {
 
 function cellText(cell) {
   if (cell === null || cell === undefined) return ''
-  const value = cell.text ?? cell.value
+  // Ưu tiên đọc `cell.value` (và tự xử lý richText) thay vì `cell.text` — getter `.text` của
+  // exceljs bị lỗi thật trên ô merge chứa richText: trả về chuỗi "[object Object]" thay vì
+  // nội dung, gặp ở 1 ô "CHỨC NĂNG" của lô EZVIZ. Cũng bọc try/catch vì ô merge trỏ tới
+  // master cell rỗng/đã xoá có thể khiến getter throw (gặp ở merged cell rỗng đầu sheet).
+  let value
+  try {
+    value = cell.value
+  } catch {
+    return ''
+  }
   if (value === null || value === undefined) return ''
   if (typeof value === 'object' && 'richText' in value) {
-    return value.richText.map((part) => part.text).join('')
+    return value.richText.map((part) => part.text).join('').normalize('NFC').trim()
   }
-  return String(value).trim()
+  if (typeof value === 'object') {
+    try {
+      const text = cell.text
+      if (typeof text === 'string' && text && text !== '[object Object]') return text.normalize('NFC').trim()
+    } catch {
+      // bỏ qua
+    }
+    return ''
+  }
+  return String(value).normalize('NFC').trim()
 }
 
-// ----- Đường xlsx (có ảnh nhúng) -----
+// Dò dòng header trong 1 tập cell {colNumber/colIndex -> text}: cần có ít nhất 1 cột map
+// được vào "sku". Trả về columnMap (core field) + extraColumns (header gốc, giữ nguyên chữ
+// hoa/thường để làm label hiển thị).
+function resolveHeaderRow(headerCells) {
+  const columnMap = {}
+  const extraColumns = {}
+  let hasTitleColumn = false
+
+  for (const [, rawText] of headerCells) {
+    const key = CORE_ALIASES[normalizeHeader(rawText)]
+    if (key === 'titleFromSheet') hasTitleColumn = true
+  }
+
+  for (const [col, rawText] of headerCells) {
+    const normalized = normalizeHeader(rawText)
+    if (!normalized) continue
+    let key = CORE_ALIASES[normalized]
+    // "Mô tả" thường là tên tạm khi không có cột "Tên sản phẩm" riêng (lô HIKFIRE cũ); khi
+    // đã có "Tên sản phẩm" thì "Mô tả" là mô tả/thông số chi tiết (lô EZVIZ).
+    if (normalized === 'mô tả') key = hasTitleColumn ? 'detailedDescriptionFromSheet' : 'titleFromSheet'
+    if (key && key !== 'imageColumn') {
+      columnMap[col] = key
+    } else if (!key) {
+      extraColumns[col] = rawText.toString().normalize('NFC').trim()
+    }
+  }
+  return { columnMap, extraColumns, ok: Object.values(columnMap).includes('sku') }
+}
+
+// Dòng chỉ có 1 ô ở đúng cột sku, không có số, và mọi field khác đều rỗng -> dòng tiêu đề
+// phân nhóm con chèn giữa dữ liệu (VD "Camera trong nhà"), không phải sản phẩm.
+function isSectionHeaderRow(item, extraFieldsCount) {
+  const skuText = (item.sku || '').trim()
+  if (!skuText || /\d/.test(skuText)) return false
+  const otherFilled = Object.entries(item).some(
+    ([k, v]) => k !== 'sku' && k !== 'imagePathFromExcel' && v !== undefined && v !== '',
+  )
+  return !otherFilled && extraFieldsCount === 0
+}
+
+// ----- Đường xlsx (có ảnh nhúng, có thể nhiều sheet) -----
 async function loadFromXlsx(filePath, imagesDir) {
   const workbook = new ExcelJS.Workbook()
   await workbook.xlsx.readFile(filePath)
-  const worksheet = workbook.worksheets[0]
-
-  let headerRowNumber
-  let columnMap = {}
-  worksheet.eachRow((row, rowNumber) => {
-    if (headerRowNumber) return
-    const candidate = {}
-    row.eachCell((cell, colNumber) => {
-      const key = HEADER_ALIASES[normalizeHeader(cellText(cell))]
-      if (key) candidate[colNumber] = key
-    })
-    if (candidate && Object.values(candidate).includes('sku')) {
-      headerRowNumber = rowNumber
-      columnMap = candidate
-    }
-  })
-
-  if (!headerRowNumber) throw new Error('Không tìm thấy dòng header (cần có cột "Mã sản phẩm")')
 
   const items = []
-  const rowIndexToSku = new Map()
 
-  for (let rowNumber = headerRowNumber + 1; rowNumber <= worksheet.rowCount; rowNumber++) {
-    const row = worksheet.getRow(rowNumber)
-    const item = {}
-    for (const [colNumber, key] of Object.entries(columnMap)) {
-      item[key] = cellText(row.getCell(Number(colNumber)))
+  for (const worksheet of workbook.worksheets) {
+    let headerRowNumber
+    let columnMap = {}
+    let extraColumns = {}
+
+    worksheet.eachRow((row, rowNumber) => {
+      if (headerRowNumber) return
+      const headerCells = []
+      row.eachCell((cell, colNumber) => headerCells.push([colNumber, cellText(cell)]))
+      const resolved = resolveHeaderRow(headerCells)
+      if (resolved.ok) {
+        headerRowNumber = rowNumber
+        columnMap = resolved.columnMap
+        extraColumns = resolved.extraColumns
+      }
+    })
+
+    if (!headerRowNumber) {
+      console.warn(`Sheet "${worksheet.name}" — không tìm thấy dòng header (cần cột mã sản phẩm), bỏ qua sheet này`)
+      continue
     }
-    if (!item.sku) continue
 
-    item.warrantyMonths = item.warrantyMonths ? parseInt(item.warrantyMonths, 10) : undefined
-    item.priceInVNDFromSheet = parseVndNumber(item.priceInVNDFromSheet)
-    item.imagePathFromExcel = undefined
+    const sheetItems = []
+    const rowIndexToItem = new Map()
+    let currentSection
 
-    rowIndexToSku.set(rowNumber - 1, item.sku) // nativeRow (0-indexed) -> sku
-    items.push(item)
-  }
+    for (let rowNumber = headerRowNumber + 1; rowNumber <= worksheet.rowCount; rowNumber++) {
+      const row = worksheet.getRow(rowNumber)
+      const item = {}
+      for (const [colNumber, key] of Object.entries(columnMap)) {
+        item[key] = cellText(row.getCell(Number(colNumber)))
+      }
+      const extraFields = []
+      for (const [colNumber, label] of Object.entries(extraColumns)) {
+        const value = cellText(row.getCell(Number(colNumber)))
+        if (value) extraFields.push({ label, value })
+      }
+      if (!item.sku) continue
 
-  const itemBySku = new Map(items.map((item) => [item.sku, item]))
-  fs.mkdirSync(imagesDir, { recursive: true })
+      if (isSectionHeaderRow(item, extraFields.length)) {
+        currentSection = item.sku.replace(/\s+/g, ' ').trim()
+        continue
+      }
 
-  for (const img of worksheet.getImages()) {
-    const nativeRow = img.range.tl.nativeRow
-    const sku = rowIndexToSku.get(nativeRow)
-    if (!sku) continue
+      item.sku = item.sku.replace(/\s+/g, ' ').trim()
+      if (item.titleFromSheet) item.titleFromSheet = item.titleFromSheet.replace(/\s+/g, ' ').trim()
+      item.warrantyMonths = item.warrantyMonths ? parseInt(item.warrantyMonths, 10) : undefined
+      item.priceInVNDFromSheet = parseVndNumber(item.priceInVNDFromSheet)
+      item.extraFields = extraFields
+      item.sheetName = worksheet.name.normalize('NFC').trim()
+      item.sheetSection = currentSection
+      item.imagePathFromExcel = undefined
 
-    const item = itemBySku.get(sku)
-    if (!item || item.imagePathFromExcel) continue // giữ ảnh đầu tiên neo vào dòng đó nếu có nhiều
+      rowIndexToItem.set(rowNumber - 1, item) // nativeRow (0-indexed) -> item
+      sheetItems.push(item)
+    }
 
-    const image = workbook.getImage(Number(img.imageId))
-    if (!image?.buffer) continue
+    fs.mkdirSync(imagesDir, { recursive: true })
+    for (const img of worksheet.getImages()) {
+      const nativeRow = img.range.tl.nativeRow
+      const item = rowIndexToItem.get(nativeRow)
+      if (!item || item.imagePathFromExcel) continue // giữ ảnh đầu tiên neo vào dòng đó nếu có nhiều
 
-    const destPath = path.join(imagesDir, `${slugifySku(sku)}.${image.extension}`)
-    fs.writeFileSync(destPath, image.buffer)
-    item.imagePathFromExcel = destPath
+      const image = workbook.getImage(Number(img.imageId))
+      if (!image?.buffer) continue
+
+      const destPath = path.join(imagesDir, `${slugifySku(item.sku)}.${image.extension}`)
+      fs.writeFileSync(destPath, image.buffer)
+      item.imagePathFromExcel = destPath
+    }
+
+    console.log(`Sheet "${worksheet.name}" — đọc ${sheetItems.length} sản phẩm`)
+    items.push(...sheetItems)
   }
 
   return items
 }
 
-// ----- Đường CSV (từ file .csv cục bộ hoặc Google Sheet export) — không có ảnh -----
+// ----- Đường CSV (từ file .csv cục bộ hoặc Google Sheet export) — 1 sheet, không có ảnh -----
 function parseCsv(text) {
   const rows = []
   let row = []
@@ -166,30 +256,45 @@ function loadFromCsvText(csvText) {
 
   let headerRowIndex = -1
   let columnMap = {}
+  let extraColumns = {}
   for (let i = 0; i < rows.length; i++) {
-    const candidate = {}
-    rows[i].forEach((cellValue, colIndex) => {
-      const key = HEADER_ALIASES[normalizeHeader(cellValue)]
-      if (key) candidate[colIndex] = key
-    })
-    if (Object.values(candidate).includes('sku')) {
+    const headerCells = rows[i].map((cellValue, colIndex) => [colIndex, cellValue])
+    const resolved = resolveHeaderRow(headerCells)
+    if (resolved.ok) {
       headerRowIndex = i
-      columnMap = candidate
+      columnMap = resolved.columnMap
+      extraColumns = resolved.extraColumns
       break
     }
   }
   if (headerRowIndex === -1) throw new Error('Không tìm thấy dòng header (cần có cột "Mã sản phẩm")')
 
   const items = []
+  let currentSection
   for (let i = headerRowIndex + 1; i < rows.length; i++) {
     const raw = rows[i]
     const item = {}
     for (const [colIndex, key] of Object.entries(columnMap)) {
-      item[key] = (raw[Number(colIndex)] || '').trim()
+      item[key] = (raw[Number(colIndex)] || '').normalize('NFC').trim()
+    }
+    const extraFields = []
+    for (const [colIndex, label] of Object.entries(extraColumns)) {
+      const value = (raw[Number(colIndex)] || '').normalize('NFC').trim()
+      if (value) extraFields.push({ label, value })
     }
     if (!item.sku) continue
+
+    if (isSectionHeaderRow(item, extraFields.length)) {
+      currentSection = item.sku.replace(/\s+/g, ' ').trim()
+      continue
+    }
+
+    item.sku = item.sku.replace(/\s+/g, ' ').trim()
+    if (item.titleFromSheet) item.titleFromSheet = item.titleFromSheet.replace(/\s+/g, ' ').trim()
     item.warrantyMonths = item.warrantyMonths ? parseInt(item.warrantyMonths, 10) : undefined
     item.priceInVNDFromSheet = parseVndNumber(item.priceInVNDFromSheet)
+    item.extraFields = extraFields
+    item.sheetSection = currentSection
     item.imagePathFromExcel = undefined
     items.push(item)
   }
@@ -225,11 +330,17 @@ async function main() {
     items = loadFromCsvText(await res.text())
   }
 
+  if (args.defaultBrand) {
+    for (const item of items) {
+      if (!item.brandNameFromSheet) item.brandNameFromSheet = args.defaultBrand
+    }
+  }
+
   fs.mkdirSync(path.dirname(outPath), { recursive: true })
   fs.writeFileSync(outPath, JSON.stringify(items, null, 2), 'utf-8')
 
   const withImage = items.filter((item) => item.imagePathFromExcel).length
-  console.log(`Đã đọc ${items.length} sản phẩm (${withImage} có ảnh nhúng) -> ${outPath}`)
+  console.log(`\nĐã đọc ${items.length} sản phẩm (${withImage} có ảnh nhúng) -> ${outPath}`)
 }
 
 main().catch((err) => {

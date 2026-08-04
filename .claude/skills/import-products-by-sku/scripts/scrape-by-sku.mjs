@@ -4,16 +4,20 @@ import path from 'node:path'
 
 const UA = 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0 Safari/537.36'
 const REQUEST_DELAY_MS = 400
+// Mặc định giữ nguyên cho lô HIKFIRE gốc (không truyền --brand/--category-root vẫn chạy y hệt
+// trước khi có 2 flag này). Lô khác truyền --brand=<tên>/--category-root="Root|Sub" để đổi.
 const DEFAULT_BRAND = 'HIKFIRE'
 const DEFAULT_CATEGORY_ROOT = ['Thiết bị báo động - báo cháy', 'Thiết bị báo cháy']
 
 function parseArgs(argv) {
-  const args = { input: null, out: null, limit: undefined }
+  const args = { input: null, out: null, limit: undefined, brand: DEFAULT_BRAND, categoryRoot: DEFAULT_CATEGORY_ROOT }
   for (const arg of argv) {
     const [key, value] = arg.replace(/^--/, '').split('=')
     if (key === 'input' && value) args.input = value
     if (key === 'out' && value) args.out = value
     if (key === 'limit' && value) args.limit = parseInt(value, 10)
+    if (key === 'brand' && value) args.brand = value
+    if (key === 'category-root' && value) args.categoryRoot = value.split('|').map((s) => s.trim()).filter(Boolean)
   }
   return args
 }
@@ -300,17 +304,20 @@ async function matchSieuThiVienThong(sku) {
   }
 }
 
-function pickCategoryPath(matches) {
+function pickCategoryPath(matches, item, categoryRoot) {
   for (const site of ['vuhoangtelecom.vn', 'nhaantoan.com', 'sieuthivienthong.com']) {
     const match = matches.find((m) => m.site === site && m.matched && m.categoryPath?.length)
-    if (match) return [...DEFAULT_CATEGORY_ROOT, match.categoryPath[match.categoryPath.length - 1]]
+    if (match) return [...categoryRoot, match.categoryPath[match.categoryPath.length - 1]]
   }
-  return DEFAULT_CATEGORY_ROOT
+  // Không site nào khớp -> dùng gợi ý từ sheet/section gốc trong file input (Bước 0) làm lá,
+  // thay vì luôn rơi về đúng 1 category cố định bất kể sản phẩm thuộc nhóm nào trong file.
+  const leaf = item.sheetSection || item.sheetName
+  return leaf ? [...categoryRoot, leaf] : categoryRoot
 }
 
-function pickBrandName(matches) {
+function pickBrandName(matches, item, brand) {
   const withBrand = matches.find((m) => m.matched && m.brandName)
-  return withBrand?.brandName || DEFAULT_BRAND
+  return withBrand?.brandName || item.brandNameFromSheet || brand
 }
 
 async function main() {
@@ -340,8 +347,8 @@ async function main() {
     results.push({
       sku: item.sku,
       matches,
-      categoryPath: pickCategoryPath(matches),
-      brandName: pickBrandName(matches),
+      categoryPath: pickCategoryPath(matches, item, args.categoryRoot),
+      brandName: pickBrandName(matches, item, args.brand),
     })
   }
 
