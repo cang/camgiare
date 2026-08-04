@@ -1,6 +1,7 @@
 'use client'
 
 import type { Header } from '@/payload-types'
+import type { MegaMenuColumn } from '@/utilities/getCategoryMegaMenu'
 
 import { CMSLink } from '@/components/Link'
 import { Button } from '@/components/ui/button'
@@ -21,9 +22,10 @@ import React, { useEffect, useState } from 'react'
 
 interface Props {
   menu: Header['navItems']
+  productCategories: MegaMenuColumn[]
 }
 
-export function MobileMenu({ menu }: Props) {
+export function MobileMenu({ menu, productCategories }: Props) {
   const { user } = useAuth()
 
   const pathname = usePathname()
@@ -77,6 +79,41 @@ export function MobileMenu({ menu }: Props) {
             </ul>
           ) : null}
         </div>
+
+        {productCategories.length > 0 && (
+          <div className="border-t py-4">
+            <h2 className="mb-2 text-sm font-semibold uppercase tracking-wide text-muted-foreground">
+              Danh mục sản phẩm
+            </h2>
+            <ul className="flex flex-col gap-3">
+              {productCategories.map((column) => (
+                <li key={column.slug ?? column.title}>
+                  {column.slug ? (
+                    <Link className="font-medium" href={`/shop?category=${column.slug}`}>
+                      {column.title}
+                    </Link>
+                  ) : (
+                    <span className="font-medium">{column.title}</span>
+                  )}
+                  {column.children.length > 0 && (
+                    <ul className="mt-1.5 flex flex-col gap-1.5 pl-3">
+                      {column.children.map((child) => (
+                        <li key={child.slug ?? child.title}>
+                          <Link
+                            className="text-sm text-muted-foreground"
+                            href={`/shop?category=${child.slug}`}
+                          >
+                            {child.title}
+                          </Link>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
 
         {user ? (
           <div className="mt-4">

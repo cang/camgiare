@@ -22,6 +22,20 @@ export const Categories: CollectionConfig = {
       required: true,
     },
     {
+      name: 'parent',
+      type: 'relationship',
+      admin: {
+        position: 'sidebar',
+        description:
+          'Danh mục cha (để trống nếu đây là danh mục gốc). Dùng để tạo cây danh mục nhiều cấp và breadcrumb.',
+      },
+      filterOptions: ({ id }) => {
+        if (!id) return true
+        return { id: { not_equals: id } }
+      },
+      relationTo: 'categories',
+    },
+    {
       name: 'isAccessory',
       type: 'checkbox',
       label: 'Danh mục phụ kiện',

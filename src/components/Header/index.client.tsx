@@ -8,7 +8,9 @@ import React, { Suspense } from 'react'
 
 import { AccountLink } from './AccountLink'
 import { MobileMenu } from './MobileMenu'
+import { ProductMegaMenu } from './ProductMegaMenu'
 import type { Header } from 'src/payload-types'
+import type { MegaMenuColumn } from '@/utilities/getCategoryMegaMenu'
 
 import { Logo } from '@/components/Logo/Logo'
 import { SearchBar } from '@/components/layout/search/SearchBar'
@@ -17,9 +19,10 @@ import { cn } from '@/utilities/cn'
 
 type Props = {
   header: Header
+  productCategories: MegaMenuColumn[]
 }
 
-export function HeaderClient({ header }: Props) {
+export function HeaderClient({ header, productCategories }: Props) {
   const menu = header.navItems || []
   const pathname = usePathname()
 
@@ -51,7 +54,7 @@ export function HeaderClient({ header }: Props) {
       <nav className="flex items-center md:items-end justify-between container pt-2">
         <div className="block flex-none md:hidden">
           <Suspense fallback={null}>
-            <MobileMenu menu={menu} />
+            <MobileMenu menu={menu} productCategories={productCategories} />
           </Suspense>
         </div>
         <div className="flex w-full items-end justify-between">
@@ -61,21 +64,31 @@ export function HeaderClient({ header }: Props) {
             </Link>
             {menu.length ? (
               <ul className="hidden gap-4 text-sm md:flex md:items-center">
-                {menu.map((item) => (
-                  <li key={item.id}>
-                    <CMSLink
-                      {...item.link}
-                      size={'clear'}
-                      className={cn('relative navLink', {
-                        active:
-                          item.link.url && item.link.url !== '/'
-                            ? pathname.includes(item.link.url)
-                            : false,
-                      })}
-                      appearance="nav"
-                    />
-                  </li>
-                ))}
+                {menu.map((item) =>
+                  item.link.url === '/shop' ? (
+                    <li key={item.id}>
+                      <ProductMegaMenu
+                        columns={productCategories}
+                        isActive={Boolean(item.link.url && pathname.includes(item.link.url))}
+                        link={item.link}
+                      />
+                    </li>
+                  ) : (
+                    <li key={item.id}>
+                      <CMSLink
+                        {...item.link}
+                        size={'clear'}
+                        className={cn('relative navLink', {
+                          active:
+                            item.link.url && item.link.url !== '/'
+                              ? pathname.includes(item.link.url)
+                              : false,
+                        })}
+                        appearance="nav"
+                      />
+                    </li>
+                  ),
+                )}
               </ul>
             ) : null}
           </div>

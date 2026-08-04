@@ -49,3 +49,7 @@ next-env.d.ts
 
 public/media
 
+# artifacts tạm khi chạy các skill import (input/scraped/enriched JSON, ảnh cào về) —
+# không phải code của skill, không cần version control
+.claude/skills/*/tmp/
+

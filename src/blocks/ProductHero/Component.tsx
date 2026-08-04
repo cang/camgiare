@@ -9,6 +9,8 @@ export const ProductHeroBlock: React.FC<
     id?: string | number
   }
 > = ({ eyebrow, heading, links, media, priceTagText, subheading }) => {
+  const hasMedia = media && typeof media === 'object'
+
   return (
     <div className="container">
       <div className="flex flex-col items-center gap-10 md:flex-row md:items-start">
@@ -33,9 +35,9 @@ export const ProductHeroBlock: React.FC<
           )}
         </div>
 
-        <div className="relative w-full flex-1">
-          <div className="relative aspect-square overflow-hidden rounded-2xl border bg-primary-foreground p-8">
-            {media && typeof media === 'object' && (
+        {hasMedia && (
+          <div className="relative w-full flex-1">
+            <div className="relative aspect-square overflow-hidden rounded-2xl border bg-primary-foreground p-8">
               <Media
                 className="relative h-full w-full"
                 fill
@@ -43,14 +45,14 @@ export const ProductHeroBlock: React.FC<
                 priority
                 resource={media}
               />
+            </div>
+            {priceTagText && (
+              <span className="absolute bottom-4 left-4 rounded-full border bg-background px-4 py-2 font-mono text-sm font-semibold shadow-sm">
+                {priceTagText}
+              </span>
             )}
           </div>
-          {priceTagText && (
-            <span className="absolute bottom-4 left-4 rounded-full border bg-background px-4 py-2 font-mono text-sm font-semibold shadow-sm">
-              {priceTagText}
-            </span>
-          )}
-        </div>
+        )}
       </div>
     </div>
   )

@@ -940,6 +940,10 @@ export interface Category {
   id: string;
   title: string;
   /**
+   * Danh mục cha (để trống nếu đây là danh mục gốc). Dùng để tạo cây danh mục nhiều cấp và breadcrumb.
+   */
+  parent?: (string | null) | Category;
+  /**
    * Đánh dấu nếu đây là danh mục phụ kiện (thẻ nhớ, nguồn, dây cáp...). Dùng để tự động gợi ý "Sản phẩm mua kèm" trên trang các sản phẩm không thuộc danh mục phụ kiện.
    */
   isAccessory?: boolean | null;
@@ -1694,6 +1698,7 @@ export interface ServicesSelect<T extends boolean = true> {
  */
 export interface CategoriesSelect<T extends boolean = true> {
   title?: T;
+  parent?: T;
   isAccessory?: T;
   generateSlug?: T;
   slug?: T;

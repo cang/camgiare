@@ -13,6 +13,7 @@ import { SpecsTable } from '@/components/product/SpecsTable'
 import { StickyAddToCart } from '@/components/product/StickyAddToCart'
 import { StoreInfoSidebar } from '@/components/product/StoreInfoSidebar'
 import { generateMeta } from '@/utilities/generateMeta'
+import { getCategoryPath } from '@/utilities/getCategoryPath'
 import configPromise from '@payload-config'
 import { getPayload } from 'payload'
 import { draftMode } from 'next/headers'
@@ -96,6 +97,9 @@ export default async function ProductPage({ params }: Args) {
       typeof category === 'object',
   )
 
+  const payload = await getPayload({ config: configPromise })
+  const categoryPath = await getCategoryPath(payload, firstCategory)
+
   const productJsonLd = {
     name: product.title,
     '@context': 'https://schema.org',
@@ -115,9 +119,11 @@ export default async function ProductPage({ params }: Args) {
   const breadcrumbItems = [
     { label: 'Trang chủ', href: '/' },
     { label: 'Cửa hàng', href: '/shop' },
-    ...(firstCategory
-      ? [{ label: firstCategory.title, href: `/shop?category=${firstCategory.slug}` }]
-      : []),
+    ...categoryPath.map((category) => ({
+      label: category.title,
+      href: `/shop?category=${category.slug}`,
+    })),
+    ...(brand ? [{ label: brand.name, href: `/shop?brand=${brand.slug}` }] : []),
     { label: product.title },
   ]
 
