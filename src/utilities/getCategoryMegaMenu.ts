@@ -18,6 +18,9 @@ function parentId(category: Category): string | number | undefined {
  * Dựng cột cho mega-menu "Sản phẩm" từ cây category (field `parent`): con của mỗi
  * category gốc trở thành 1 cột (tên cột), con của category đó trở thành các link liệt
  * kê trong cột. Category gốc không hiện — chỉ có ý nghĩa cấu trúc, không phải điểm bấm.
+ * Cột không có con nào (chưa có sub-category) bị lược bỏ khỏi mega-menu để tránh cột
+ * trống hiển thị lẫn với các cột có dữ liệu — category đó vẫn duyệt được bình thường
+ * qua trang `/shop`, chỉ là không xuất hiện trong menu này cho tới khi có con.
  */
 export async function getCategoryMegaMenu(payload: Payload): Promise<MegaMenuColumn[]> {
   const { docs: categories } = await payload.find({
@@ -42,13 +45,15 @@ export async function getCategoryMegaMenu(payload: Payload): Promise<MegaMenuCol
       // Category gốc không có con nào — coi chính nó là 1 cột đơn (không có link con).
       return [{ title: root.title, slug: root.slug, children: [] }]
     }
-    return columns.map((column) => ({
-      title: column.title,
-      slug: column.slug,
-      children: (childrenOf.get(column.id) ?? []).map((child) => ({
-        title: child.title,
-        slug: child.slug,
-      })),
-    }))
+    return columns
+      .map((column) => ({
+        title: column.title,
+        slug: column.slug,
+        children: (childrenOf.get(column.id) ?? []).map((child) => ({
+          title: child.title,
+          slug: child.slug,
+        })),
+      }))
+      .filter((column) => column.children.length > 0)
   })
 }
