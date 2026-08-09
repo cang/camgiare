@@ -2,6 +2,7 @@ import type { Media } from '@/payload-types'
 
 import { RenderBlocks } from '@/blocks/RenderBlocks'
 import { Breadcrumbs } from '@/components/Breadcrumbs'
+import { RichText } from '@/components/RichText'
 import { BrandInfo } from '@/components/product/BrandInfo'
 import { BundleProducts } from '@/components/product/BundleProducts'
 import { Gallery } from '@/components/product/Gallery'
@@ -160,8 +161,9 @@ export default async function ProductPage({ params }: Args) {
           </div>
         </div>
 
-        {(Boolean(product.specifications?.length) || brand) && (
+        {(product.description || Boolean(product.specifications?.length) || brand) && (
           <div className="mt-8 flex flex-col gap-10">
+            {product.description && <RichText data={product.description} enableGutter={false} />}
             {Boolean(product.specifications?.length) && (
               <SpecsTable specifications={product.specifications!} />
             )}

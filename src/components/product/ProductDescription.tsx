@@ -2,7 +2,6 @@
 import type { Product, Variant } from '@/payload-types'
 
 import Link from 'next/link'
-import { RichText } from '@/components/RichText'
 import { AddToCart } from '@/components/Cart/AddToCart'
 import { Media } from '@/components/Media'
 import { Price } from '@/components/Price'
@@ -123,10 +122,6 @@ export function ProductDescription({
           ))}
         </ul>
       )}
-
-      {product.description ? (
-        <RichText className="" data={product.description} enableGutter={false} />
-      ) : null}
 
       <hr />
       {hasVariants && (
