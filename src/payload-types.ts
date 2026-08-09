@@ -2235,6 +2235,14 @@ export interface Footer {
 export interface StoreInfo {
   id: string;
   hotline?: string | null;
+  /**
+   * Link chat Zalo, vd: https://zalo.me/0919547338. Để trống thì nút Zalo nổi sẽ ẩn.
+   */
+  zaloLink?: string | null;
+  /**
+   * Link Fanpage, vd: https://facebook.com/tenshop. Để trống thì nút Facebook nổi sẽ ẩn.
+   */
+  facebookLink?: string | null;
   shippingNote?: string | null;
   warrantyNote?: string | null;
   returnNote?: string | null;
@@ -2294,6 +2302,8 @@ export interface FooterSelect<T extends boolean = true> {
  */
 export interface StoreInfoSelect<T extends boolean = true> {
   hotline?: T;
+  zaloLink?: T;
+  facebookLink?: T;
   shippingNote?: T;
   warrantyNote?: T;
   returnNote?: T;

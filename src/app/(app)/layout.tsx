@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import type { ReactNode } from 'react'
 
 import { AdminBar } from '@/components/AdminBar'
+import { FloatingContact } from '@/components/FloatingContact'
 import { Footer } from '@/components/Footer'
 import { Header } from '@/components/Header'
 import { LivePreviewListener } from '@/components/LivePreviewListener'
@@ -65,6 +66,7 @@ export default async function RootLayout({ children }: { children: ReactNode }) 
           <Header />
           <main>{children}</main>
           <Footer />
+          <FloatingContact />
         </Providers>
       </body>
     </html>
