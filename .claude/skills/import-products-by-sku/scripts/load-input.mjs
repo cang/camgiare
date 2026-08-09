@@ -18,6 +18,8 @@ const CORE_ALIASES = {
   'bảo hành': 'warrantyText',
   'giá lẻ (có vat)': 'priceInVNDFromSheet',
   'giá bán lẻ': 'priceInVNDFromSheet',
+  'giá bán lẻ (đã gồm vat)': 'priceInVNDFromSheet',
+  'giá bán lẻ vat 8%': 'priceInVNDFromSheet',
   'tình trạng hàng': 'stockStatusTextFromSheet',
   'tình trạng': 'stockStatusTextFromSheet',
   'hình ảnh': 'imageColumn', // không map vào field text nào — ảnh lấy qua embedded image, xử lý riêng
@@ -35,8 +37,16 @@ function parseArgs(argv) {
   return args
 }
 
+// Gộp khoảng trắng (kể cả xuống dòng trong 1 ô header, VD "Giá bán lẻ\n(đã gồm VAT)") thành 1
+// dấu cách trước khi so alias — nếu không, các biến thể xuống dòng/nhiều dấu cách sẽ rơi tọt
+// vào extraFields thay vì field priceInVNDFromSheet dù về ý nghĩa là cùng 1 cột giá.
 function normalizeHeader(text) {
-  return (text || '').toString().normalize('NFC').trim().toLowerCase()
+  return (text || '')
+    .toString()
+    .normalize('NFC')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .toLowerCase()
 }
 
 function slugifySku(sku) {
@@ -113,15 +123,31 @@ function resolveHeaderRow(headerCells) {
   return { columnMap, extraColumns, ok: Object.values(columnMap).includes('sku') }
 }
 
-// Dòng chỉ có 1 ô ở đúng cột sku, không có số, và mọi field khác đều rỗng -> dòng tiêu đề
-// phân nhóm con chèn giữa dữ liệu (VD "Camera trong nhà"), không phải sản phẩm.
+// Dòng tiêu đề phân nhóm con chèn giữa dữ liệu (VD "Camera trong nhà"), không phải sản phẩm.
+// 2 dạng đã gặp:
+//  1) Chỉ có 1 ô ở cột sku, không có số, mọi field khác rỗng (VD lô HIKFIRE cũ).
+//  2) Excel merge nguyên cả hàng (A:F) làm tiêu đề — khi đọc theo cột, MỌI cột (kể cả giá/mô
+//     tả) đều trả về CHÍNH XÁC cùng 1 chữ với cột mã sản phẩm, khác hẳn 1 dòng sản phẩm thật
+//     (không cột nào trùng chữ với mã sản phẩm). Dạng này có thể chứa số trong tên (VD "CAMERA
+//     2 INCH PT", "CAMERA 2xx1" ở lô Hikvision - Nhà An Toàn) nên không thể chỉ loại theo "sku
+//     không có số" như dạng 1 — phải nhận diện qua dấu hiệu merge-trùng-chữ này là chính.
 function isSectionHeaderRow(item, extraFieldsCount) {
   const skuText = (item.sku || '').trim()
-  if (!skuText || /\d/.test(skuText)) return false
-  const otherFilled = Object.entries(item).some(
-    ([k, v]) => k !== 'sku' && k !== 'imagePathFromExcel' && v !== undefined && v !== '',
-  )
-  return !otherFilled && extraFieldsCount === 0
+  if (!skuText) return false
+
+  const otherValues = Object.entries(item)
+    .filter(([k, v]) => k !== 'sku' && k !== 'imagePathFromExcel' && v !== undefined && v !== '')
+    .map(([, v]) => v)
+
+  const isMergedDuplicateRow =
+    otherValues.length > 0 && otherValues.every((v) => typeof v === 'string' && v.trim() === skuText)
+  if (isMergedDuplicateRow) return true
+
+  // Dạng 1 (chỉ 1 ô ở cột sku, các cột khác rỗng thật sự — không phải merge): không dùng "có
+  // số hay không" để loại nữa, vì gặp tiêu đề "SWITCH QUẢN LÝ THÔNG MINH 100M" (có số "100")
+  // ở lô Hikvision - Nhà An Toàn bị lọt do heuristic cũ. 1 dòng sản phẩm thật luôn có ít nhất
+  // giá ("Liên hệ"/số) hoặc tình trạng hàng — rỗng toàn bộ các cột đó là dấu hiệu đủ tin cậy.
+  return otherValues.length === 0 && extraFieldsCount === 0
 }
 
 // ----- Đường xlsx (có ảnh nhúng, có thể nhiều sheet) -----

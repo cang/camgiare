@@ -73,10 +73,43 @@ async function findOrCreateBrand(payload, rawName, cache) {
   return brand
 }
 
+function slugifyText(text) {
+  return (text || '')
+    .toString()
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .replace(/đ/g, 'd')
+    .replace(/Đ/g, 'D')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '')
+}
+
+// Categories.slug có unique index TOÀN CỤC (không scope theo parent — xem Categories.ts,
+// dùng slugField() mặc định của payload). Nghĩa là 2 nhánh khác nhau (VD "Camera Hikvision"
+// và "Camera EZVIZ") đều có thể muốn tạo 1 category lá cùng tên (VD "Camera ngoài trời") mà
+// vẫn đụng nhau ở slug dù title+parent khác — payload.create sẽ ném lỗi "Value must be unique".
+// Do đó khi tạo mới, luôn tự kiểm tra trước xem slug dự kiến đã bị chiếm chưa; nếu có, gắn thêm
+// hậu tố theo tên category cha để phân biệt, nhưng vẫn giữ `title` sạch (không đổi tên hiển thị).
+async function createCategoryWithUniqueSlug(payload, name, parentId, parentDoc) {
+  let candidateSlug = slugifyText(name)
+  const taken = await payload.find({
+    collection: 'categories',
+    where: { slug: { equals: candidateSlug } },
+    limit: 1,
+  })
+  if (taken.docs.length) {
+    const suffix = parentDoc ? slugifyText(parentDoc.title) : 'danh-muc'
+    candidateSlug = `${candidateSlug}-${suffix}`
+  }
+  return payload.create({ collection: 'categories', data: { title: name, parent: parentId, slug: candidateSlug } })
+}
+
 // Đi từ root, mỗi bước find-or-create theo title + gán parent = id bước trước, trả về id
 // của category lá cuối cùng (categories.parent do lượt trước thêm — xem Categories.ts).
 async function findOrCreateCategoryPath(payload, rawNames, cache) {
   let parentId
+  let parentDoc
   let leafId
   for (const rawName of rawNames || []) {
     const name = normalizeName(rawName)
@@ -88,12 +121,11 @@ async function findOrCreateCategoryPath(payload, rawNames, cache) {
         where: { title: { equals: name }, ...(parentId ? { parent: { equals: parentId } } : {}) },
         limit: 1,
       })
-      const category =
-        existing.docs[0] ??
-        (await payload.create({ collection: 'categories', data: { title: name, parent: parentId } }))
+      const category = existing.docs[0] ?? (await createCategoryWithUniqueSlug(payload, name, parentId, parentDoc))
       cache.set(key, category)
     }
-    leafId = cache.get(key).id
+    parentDoc = cache.get(key)
+    leafId = parentDoc.id
     parentId = leafId
   }
   return leafId ? [leafId] : []

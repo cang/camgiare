@@ -304,8 +304,92 @@ async function matchSieuThiVienThong(sku) {
   }
 }
 
+// ----- Site thứ 4: cameraphanthiet.net (thêm 2026-08-08, thấy tốt cho các mã Hikvision hiếm
+// mà 3 site kia không có). Site tự viết (không phải WooCommerce) — search GET /tim-kiem.html?
+// type=product&q=..., verify SKU chính xác qua field "Mã Sản phẩm:" khai trên trang chi tiết
+// (không phải chỉ khớp theo title kết quả tìm kiếm, cũng dễ bị nhầm theo substring y hệt 3
+// site kia). Có thêm `imageUrl` (site này không dùng WooCommerce nên không cào ảnh watermark
+// kiểu cũ) để bước gap-fill ảnh có thể tải trực tiếp thay vì phải tự dò URL ảnh bằng curl.
+async function matchCameraPhanThiet(sku) {
+  const BASE = 'https://www.cameraphanthiet.net'
+  const searchUrl = `${BASE}/tim-kiem.html?type=product&q=${encodeURIComponent(sku)}`
+  const { html } = await fetchText(searchUrl)
+  const $list = cheerio.load(html)
+
+  const candidateUrls = new Set()
+  $list('a.product-name[href]').each((_, el) => {
+    const href = $list(el).attr('href')
+    const titleAttr = $list(el).attr('title') || ''
+    if (href && isExactSkuMatch(titleAttr, sku)) candidateUrls.add(href)
+  })
+
+  if (!candidateUrls.size) return { matched: false, site: 'cameraphanthiet.net' }
+
+  let found
+  for (const url of Array.from(candidateUrls).slice(0, 5)) {
+    await sleep(REQUEST_DELAY_MS)
+    const { html: productHtml, res } = await fetchText(url)
+    const $ = cheerio.load(productHtml)
+    let declaredSku
+    $('.m-r-20').each((_, el) => {
+      const node = $(el)
+      if (node.find('strong').text().includes('Mã Sản phẩm')) {
+        declaredSku = node.clone().children().remove().end().text().trim()
+      }
+    })
+    if (isExactSkuMatch(declaredSku, sku)) {
+      found = { $, productUrl: res.url }
+      break
+    }
+  }
+  if (!found) return { matched: false, site: 'cameraphanthiet.net' }
+  const { $, productUrl } = found
+
+  const title = $('#product-title').first().text().trim()
+
+  const crumbTexts = []
+  $('ol.breadcrumb li.breadcrumb-item a span').each((_, el) => {
+    const t = textOf($(el))
+    if (t) crumbTexts.push(t)
+  })
+  const categoryPath = crumbTexts.slice(1) // bỏ "Trang chủ"; site này không có Brand riêng ngoài breadcrumb
+  const brandName = crumbTexts[1] || undefined
+
+  const priceText = $('.price_detail .text-danger-price').first().text().trim()
+  const priceInVND = parseVndNumber(priceText)
+
+  // Selector phải chỉ định tag div — heading h2#short-desc-title trong cùng section cũng mang
+  // class "f-18" (dùng chung cho cỡ chữ), nếu chỉ lọc ".f-18" sẽ khớp nhầm vào chính tiêu đề
+  // "Mô tả ngắn" thay vì nội dung mô tả thật bên dưới.
+  const shortDescriptionText = textOf($('[aria-labelledby="short-desc-title"] div.f-18').first())
+
+  const specifications = specTableFromPairs(
+    $,
+    $('[aria-labelledby="tom-tat-thong-so-ky-thuat-san-pham"] table tbody tr'),
+    'td:nth-child(1)',
+    'td:nth-child(2)',
+  )
+
+  const imageUrl = $('img.img_thumb_list').first().attr('src') || undefined
+
+  return {
+    matched: true,
+    site: 'cameraphanthiet.net',
+    sourceUrl: productUrl,
+    title,
+    brandName,
+    categoryPath,
+    shortDescriptionBullets: shortDescriptionText ? [shortDescriptionText] : [],
+    specifications,
+    descriptionText: '',
+    priceInVND,
+    inStock: undefined,
+    imageUrl,
+  }
+}
+
 function pickCategoryPath(matches, item, categoryRoot) {
-  for (const site of ['vuhoangtelecom.vn', 'nhaantoan.com', 'sieuthivienthong.com']) {
+  for (const site of ['vuhoangtelecom.vn', 'nhaantoan.com', 'sieuthivienthong.com', 'cameraphanthiet.net']) {
     const match = matches.find((m) => m.site === site && m.matched && m.categoryPath?.length)
     if (match) return [...categoryRoot, match.categoryPath[match.categoryPath.length - 1]]
   }
@@ -331,7 +415,7 @@ async function main() {
   for (const [index, item] of targetItems.entries()) {
     const label = `[${index + 1}/${targetItems.length}] ${item.sku}`
     const matches = []
-    for (const matcher of [matchVuHoangTelecom, matchNhaAnToan, matchSieuThiVienThong]) {
+    for (const matcher of [matchVuHoangTelecom, matchNhaAnToan, matchSieuThiVienThong, matchCameraPhanThiet]) {
       try {
         matches.push(await matcher(item.sku))
       } catch (err) {
@@ -342,7 +426,7 @@ async function main() {
     }
 
     const matchedSites = matches.filter((m) => m.matched)
-    console.log(`${label} — khớp ${matchedSites.length}/3 site (${matchedSites.map((m) => m.site).join(', ') || 'không site nào'})`)
+    console.log(`${label} — khớp ${matchedSites.length}/4 site (${matchedSites.map((m) => m.site).join(', ') || 'không site nào'})`)
 
     results.push({
       sku: item.sku,
